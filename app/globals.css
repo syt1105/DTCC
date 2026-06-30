@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 216 33% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --muted: 214 32% 91%;
+  --muted-foreground: 215 16% 42%;
+  --border: 214 32% 88%;
+  --input: 214 32% 88%;
+  --ring: 221 83% 53%;
+  --primary: 220 82% 43%;
+  --primary-foreground: 0 0% 100%;
+}
+
+.dark {
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  --card: 222 44% 12%;
+  --card-foreground: 210 40% 96%;
+  --muted: 217 33% 18%;
+  --muted-foreground: 215 20% 72%;
+  --border: 217 33% 20%;
+  --input: 217 33% 20%;
+  --ring: 217 91% 60%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: hsl(var(--background));
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  color: hsl(var(--foreground));
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 32rem),
+    linear-gradient(180deg, #f8fbff 0%, hsl(var(--background)) 36%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  color: white;
+  background: #0b4fd7;
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 32rem),
+    hsl(var(--background));
+}
+
+.focus-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+}
