@@ -112,7 +112,7 @@ export function VulnerabilityTable({
                 </td>
                 <td className="px-3 py-3 font-medium text-navy dark:text-white">{vulnerability.product}</td>
                 <td className="px-3 py-3 font-semibold">{vulnerability.cvss.toFixed(1)}</td>
-                <td className="px-3 py-3">{vulnerability.epss.toFixed(2)}</td>
+                <td className="px-3 py-3">{vulnerability.epss.toFixed(3)}</td>
                 <td className="px-3 py-3">
                   <Badge tone={vulnerability.kev ? "red" : "slate"}>{vulnerability.kev ? "Yes" : "No"}</Badge>
                 </td>

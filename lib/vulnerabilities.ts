@@ -36,23 +36,41 @@ export function getSummaryCounts() {
 }
 
 export function deriveRecommendation(vulnerability: Vulnerability): Recommendation {
-  if (vulnerability.kev && vulnerability.internetFacing && vulnerability.tier === "Tier 1") {
-    return "ACT";
-  }
+  const factors = deriveSsvcFactorValues(vulnerability);
 
   if (
-    vulnerability.kev &&
-    vulnerability.businessCritical &&
-    (vulnerability.epss >= 0.75 || vulnerability.tier !== "Tier 3")
+    factors.exploitation === "Active" &&
+    ((factors.technicalImpact === "Total" &&
+      (factors.businessImpact === "High" || factors.missionPrevalence === "High")) ||
+      (factors.businessImpact === "High" && factors.automatable !== "No"))
   ) {
     return "ACT";
   }
 
   if (
-    vulnerability.cvss >= 9 ||
-    vulnerability.epss >= 0.5 ||
-    vulnerability.businessCritical ||
-    vulnerability.internetFacing
+    factors.exploitation === "Active" &&
+    factors.technicalImpact === "Total" &&
+    vulnerability.tier !== "Tier 3"
+  ) {
+    return "ACT";
+  }
+
+  if (
+    factors.exploitation === "Active" &&
+    (factors.technicalImpact === "Total" ||
+      factors.automatable !== "No" ||
+      factors.missionPrevalence !== "Low" ||
+      factors.businessImpact !== "Low")
+  ) {
+    return "ATTEND";
+  }
+
+  if (
+    factors.exploitation === "PoC / likely" &&
+    (factors.technicalImpact !== "Limited" ||
+      factors.automatable !== "No" ||
+      factors.missionPrevalence !== "Low" ||
+      factors.businessImpact !== "Low")
   ) {
     return "ATTEND";
   }
@@ -62,66 +80,134 @@ export function deriveRecommendation(vulnerability: Vulnerability): Recommendati
 
 export function buildReasoning(vulnerability: Vulnerability) {
   const recommendation = deriveRecommendation(vulnerability);
-  const evidence = ["NVD", "KEV", "EPSS", "Asset Inventory", "Threat Intelligence"];
-  const log: string[] = [];
-
-  if (vulnerability.kev) {
-    log.push("KEV listed, confirming exploitation has been observed in the wild.");
-  } else {
-    log.push("Not currently KEV listed, so the immediate exploitation gate is not triggered.");
-  }
-
-  if (vulnerability.epss >= 0.9) {
-    log.push(`EPSS ${vulnerability.epss.toFixed(2)} indicates very high probability of exploitation.`);
-  } else if (vulnerability.epss >= 0.5) {
-    log.push(`EPSS ${vulnerability.epss.toFixed(2)} exceeds the ATTEND threshold.`);
-  } else {
-    log.push(`EPSS ${vulnerability.epss.toFixed(2)} remains below the high-likelihood threshold.`);
-  }
-
-  if (vulnerability.internetFacing) {
-    log.push(`${vulnerability.tier} asset is internet-facing, increasing exposure and response urgency.`);
-  } else {
-    log.push(`${vulnerability.tier} asset is internal, reducing immediate external exposure.`);
-  }
-
-  if (vulnerability.businessCritical) {
-    log.push(`${vulnerability.businessUnit} is business critical with ${vulnerability.missionDependency.toLowerCase()} mission dependency.`);
-  } else {
-    log.push(`${vulnerability.businessUnit} has limited mission dependency for this review.`);
-  }
-
-  log.push(`SSVC outcome: ${recommendation}, aligned to the observed threat and business context.`);
+  const evidence = ["CVE.org / NVD", "CISA KEV", "FIRST EPSS", "Mock Asset Inventory", "Simulated Threat Intelligence"];
+  const decisionPath = buildDecisionPath(vulnerability, recommendation);
+  const log = decisionPath.map((step) => `${step.label}: ${step.value}. ${step.rationale}`);
 
   return {
     evidence,
     log,
-    decisionPath: buildDecisionPath(vulnerability, recommendation),
+    decisionPath,
     confidence: vulnerability.confidence,
     recommendation
   };
 }
 
+function deriveSsvcFactorValues(vulnerability: Vulnerability) {
+  const exploitation = vulnerability.kev
+    ? "Active"
+    : vulnerability.epss >= 0.7
+      ? "PoC / likely"
+      : "Monitored";
+
+  const automatable =
+    vulnerability.internetFacing && (vulnerability.cvss >= 8.5 || vulnerability.epss >= 0.7)
+      ? "Yes"
+      : vulnerability.internetFacing || vulnerability.epss >= 0.7
+        ? "Limited"
+        : "No";
+
+  const technicalImpact =
+    vulnerability.cvss >= 9 ? "Total" : vulnerability.cvss >= 7 ? "Partial" : "Limited";
+
+  const missionPrevalence =
+    vulnerability.tier === "Tier 1" || vulnerability.businessCritical
+      ? "High"
+      : vulnerability.tier === "Tier 2"
+        ? "Medium"
+        : "Low";
+
+  const businessImpact =
+    vulnerability.missionDependency === "High"
+      ? "High"
+      : vulnerability.businessCritical || vulnerability.missionDependency === "Medium"
+        ? "Medium"
+        : "Low";
+
+  return {
+    exploitation,
+    automatable,
+    technicalImpact,
+    missionPrevalence,
+    businessImpact
+  };
+}
+
 function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recommendation): DecisionPathStep[] {
+  const factors = deriveSsvcFactorValues(vulnerability);
+
   return [
     {
-      label: "KEV",
-      value: vulnerability.kev ? "Yes" : "No",
-      tone: vulnerability.kev ? "ACT" : "neutral"
+      label: "Exploitation",
+      value: factors.exploitation,
+      source: vulnerability.kev
+        ? `CISA KEV${vulnerability.kevDateAdded ? `, added ${vulnerability.kevDateAdded}` : ""}`
+        : `FIRST EPSS ${vulnerability.epss.toFixed(5)} as of ${vulnerability.epssDate}`,
+      rationale: vulnerability.kev
+        ? "Observed exploitation is confirmed by CISA KEV."
+        : vulnerability.epss >= 0.7
+          ? "The CVE is not in KEV, but EPSS indicates elevated exploitation likelihood."
+          : "No KEV listing and EPSS does not indicate elevated near-term likelihood.",
+      tone: vulnerability.kev ? "ACT" : vulnerability.epss >= 0.7 ? "ATTEND" : "TRACK"
     },
     {
-      label: "Threat Context",
-      value: vulnerability.kev || vulnerability.epss >= 0.5 ? "Active / likely" : "Monitored",
-      tone: vulnerability.kev ? "ACT" : vulnerability.epss >= 0.5 ? "ATTEND" : "TRACK"
+      label: "Automatable",
+      value: factors.automatable,
+      source: `${vulnerability.internetFacing ? "Internet-facing" : "Internal"} asset, CVSS ${vulnerability.cvss.toFixed(1)}`,
+      rationale:
+        factors.automatable === "Yes"
+          ? "External exposure and high exploitability make repeatable exploitation plausible."
+          : factors.automatable === "Limited"
+            ? "Some exploitability indicators exist, but exposure or severity reduces confidence."
+            : "Internal-only exposure and lower exploitability reduce automation concerns.",
+      tone: factors.automatable === "Yes" ? "ACT" : factors.automatable === "Limited" ? "ATTEND" : "TRACK"
     },
     {
-      label: "Business Context",
-      value: vulnerability.businessCritical ? `${vulnerability.tier}, critical` : vulnerability.tier,
-      tone: vulnerability.businessCritical ? "ATTEND" : "TRACK"
+      label: "Technical Impact",
+      value: factors.technicalImpact,
+      source: vulnerability.cvssSource,
+      rationale:
+        factors.technicalImpact === "Total"
+          ? `CVSS ${vulnerability.cvss.toFixed(1)} indicates critical technical impact.`
+          : factors.technicalImpact === "Partial"
+            ? `CVSS ${vulnerability.cvss.toFixed(1)} indicates meaningful but not total impact.`
+            : `CVSS ${vulnerability.cvss.toFixed(1)} indicates limited technical impact.`,
+      tone: factors.technicalImpact === "Total" ? "ACT" : factors.technicalImpact === "Partial" ? "ATTEND" : "TRACK"
+    },
+    {
+      label: "Mission Prevalence",
+      value: factors.missionPrevalence,
+      source: `${vulnerability.tier}${vulnerability.businessCritical ? ", business critical" : ""}`,
+      rationale:
+        factors.missionPrevalence === "High"
+          ? "The affected asset is central enough to influence remediation urgency."
+          : factors.missionPrevalence === "Medium"
+            ? "The affected asset is important, but not the highest tier in this PoC context."
+            : "The affected asset has limited mission prevalence in this PoC context.",
+      tone: factors.missionPrevalence === "High" ? "ACT" : factors.missionPrevalence === "Medium" ? "ATTEND" : "TRACK"
+    },
+    {
+      label: "Business Impact",
+      value: factors.businessImpact,
+      source: `${vulnerability.businessUnit}, mission dependency ${vulnerability.missionDependency}`,
+      rationale:
+        factors.businessImpact === "High"
+          ? "Service disruption or compromise would materially affect mission delivery."
+          : factors.businessImpact === "Medium"
+            ? "Business impact is meaningful but does not trigger the highest response tier alone."
+            : "Business impact is limited in the simulated enterprise context.",
+      tone: factors.businessImpact === "High" ? "ACT" : factors.businessImpact === "Medium" ? "ATTEND" : "TRACK"
     },
     {
       label: "SSVC Decision",
       value: recommendation,
+      source: "SSVC-inspired PoC decision policy",
+      rationale:
+        recommendation === "ACT"
+          ? "Active or highly likely exploitation intersects with material mission or business impact."
+          : recommendation === "ATTEND"
+            ? "The issue warrants scheduled analyst attention, but not immediate emergency action."
+            : "The issue should remain visible, but current factors support monitoring over action.",
       tone: recommendation
     }
   ];

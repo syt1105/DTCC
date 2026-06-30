@@ -1,47 +1,87 @@
-import { CheckCircle2, Database, Globe2, Layers3, ShieldAlert, Target, TriangleAlert } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Badge, RecommendationBadge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { DecisionPathStep, ReasoningOutput, Recommendation } from "@/lib/types";
+import type { DecisionPathStep, ReasoningOutput, Recommendation, Vulnerability } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const icons = [ShieldAlert, Globe2, TriangleAlert, Target, Database];
+export function SsvcReviewPanel({
+  reasoning,
+  vulnerability
+}: {
+  reasoning: ReasoningOutput;
+  vulnerability: Vulnerability;
+}) {
+  const decision = reasoning.decisionPath[reasoning.decisionPath.length - 1];
+  const factors = reasoning.decisionPath.slice(0, -1);
 
-export function ReasoningPanel({ reasoning }: { reasoning: ReasoningOutput }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI Reasoning</CardTitle>
-        <div className="flex flex-wrap gap-2 pt-2">
-          {reasoning.evidence.map((item) => (
-            <Badge key={item} tone="blue">
-              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-              {item}
-            </Badge>
-          ))}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <CardTitle>AI-Assisted SSVC Review</CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              One consolidated view of recommendation, decision path, and evidence inputs.
+            </p>
+          </div>
+          <ConfidenceBadge value={reasoning.confidence} />
         </div>
       </CardHeader>
+
       <CardContent>
-        <div className="space-y-4">
-          {reasoning.log.map((line, index) => {
-            const Icon = icons[index % icons.length];
-            return (
-              <div className="flex gap-3 text-sm" key={line}>
-                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-700">
-                  <Icon className="h-4 w-4" />
-                </div>
-                <p className="leading-6 text-slate-700 dark:text-slate-200">{line}</p>
-              </div>
-            );
-          })}
+        <div className="rounded-lg border border-border bg-slate-50 p-4 dark:bg-slate-900">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-xs font-bold uppercase text-muted-foreground">Recommendation Rationale</div>
+              <p className="mt-2 max-w-3xl text-sm font-semibold leading-6 text-navy dark:text-white">
+                {decision.rationale}
+              </p>
+            </div>
+            <div className="shrink-0">
+              <RecommendationBadge className="min-w-20 justify-center" value={reasoning.recommendation} />
+            </div>
+          </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between border-t border-border pt-5">
-          <div>
-            <div className="text-sm font-semibold text-navy dark:text-white">Confidence Score</div>
-            <div className="mt-1 text-xs text-muted-foreground">Based on correlated evidence and asset context</div>
+        <div className="mt-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-sm font-bold text-navy dark:text-white">Decision Path</h3>
+            <span className="text-xs text-muted-foreground">SSVC-inspired PoC logic</span>
           </div>
-          <ConfidenceRing value={reasoning.confidence} />
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {reasoning.decisionPath.map((step, index) => (
+              <PathStep index={index} key={`${step.label}-${step.value}`} step={step} />
+            ))}
+          </div>
         </div>
+
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
+          <div className="rounded-lg border border-border p-4">
+            <h3 className="text-sm font-bold text-navy dark:text-white">Evidence Inputs</h3>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {reasoning.evidence.map((item) => (
+                <Badge className="min-h-5 px-1.5 text-[11px]" key={item} tone="blue">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  {item}
+                </Badge>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border p-4">
+            <h3 className="text-sm font-bold text-navy dark:text-white">Snapshot</h3>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <SnapshotItem label="CISA KEV" value={vulnerability.kev ? "Listed" : "Not listed"} />
+              <SnapshotItem label="EPSS" value={vulnerability.epss.toFixed(5)} />
+              <SnapshotItem label="CVSS" value={vulnerability.cvss.toFixed(1)} />
+              <SnapshotItem label="Asset Context" value={`${vulnerability.tier}, ${vulnerability.internetFacing ? "External" : "Internal"}`} />
+            </div>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">
+          This is an SSVC-inspired PoC flow, not a complete implementation of the official CISA SSVC model.
+        </p>
       </CardContent>
     </Card>
   );
@@ -64,46 +104,60 @@ export function ConfidenceRing({ value }: { value: number }) {
   );
 }
 
-export function DecisionPath({ steps }: { steps: DecisionPathStep[] }) {
+function ConfidenceBadge({ value }: { value: number }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>SSVC Decision Path</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] md:items-center">
-          {steps.map((step, index) => (
-            <PathFragment key={`${step.label}-${step.value}`} showArrow={index < steps.length - 1} step={step} />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex min-h-20 min-w-28 flex-col items-center justify-center rounded-md border border-blue-100 bg-blue-50 px-3 py-2 text-center">
+      <div className="text-xs font-bold uppercase text-blue-700">Confidence</div>
+      <div className="text-lg font-bold text-navy">{value}%</div>
+    </div>
   );
 }
 
-function PathFragment({
+function PathStep({
   step,
-  showArrow
+  index
 }: {
   step: DecisionPathStep;
-  showArrow: boolean;
+  index: number;
 }) {
   return (
-    <>
-      <div
-        className={cn(
-          "rounded-lg border p-4 text-center",
-          step.tone === "ACT" && "border-red-100 bg-red-50",
-          step.tone === "ATTEND" && "border-orange-100 bg-orange-50",
-          step.tone === "TRACK" && "border-green-100 bg-green-50",
-          step.tone === "neutral" && "border-slate-200 bg-slate-50"
-        )}
-      >
-        <div className="text-xs font-bold uppercase text-slate-500">{step.label}</div>
-        <div className="mt-2 text-sm font-bold text-navy">{step.value}</div>
-        {step.label === "SSVC Decision" ? <RecommendationBadge className="mt-3" value={step.value as Recommendation} /> : null}
+    <div
+      className={cn(
+        "h-full rounded-lg border p-3",
+        step.tone === "ACT" && "border-red-100 bg-red-50",
+        step.tone === "ATTEND" && "border-orange-100 bg-orange-50",
+        step.tone === "TRACK" && "border-green-100 bg-green-50",
+        step.tone === "neutral" && "border-slate-200 bg-slate-50"
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-[11px] font-bold uppercase text-slate-500">{step.label}</div>
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-navy shadow-sm">
+          {index + 1}
+        </div>
       </div>
-      {showArrow ? <div className="hidden text-center text-slate-400 md:block">→</div> : null}
-    </>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="text-base font-bold text-navy">{step.value}</div>
+        {step.label === "SSVC Decision" ? <RecommendationBadge value={step.value as Recommendation} /> : null}
+      </div>
+      <div className="mt-2 truncate text-xs font-semibold text-slate-500" title={step.source}>
+        {step.source}
+      </div>
+    </div>
+  );
+}
+
+function SnapshotItem({
+  label,
+  value
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-900">
+      <div className="text-[11px] font-bold uppercase text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-bold text-navy dark:text-white">{value}</div>
+    </div>
   );
 }

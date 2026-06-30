@@ -67,7 +67,7 @@ export function writeAuditEntry(entry: Omit<AuditEntry, "id" | "timestamp" | "an
   const entries = readAuditEntries();
   const next: AuditEntry = {
     ...entry,
-    id: crypto.randomUUID(),
+    id: createAuditId(),
     timestamp: new Date().toISOString(),
     analyst: "Analyst A"
   };
@@ -76,6 +76,14 @@ export function writeAuditEntry(entry: Omit<AuditEntry, "id" | "timestamp" | "an
   window.localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(updated));
   window.dispatchEvent(new Event("tva-audit-updated"));
   return next;
+}
+
+function createAuditId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `audit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function formatAuditDate(timestamp: string) {
