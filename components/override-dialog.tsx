@@ -36,7 +36,7 @@ export function OverrideDialog({
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-navy/60 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-xl rounded-lg border border-border bg-white p-6 shadow-enterprise dark:bg-card">
+      <div className="w-full max-w-xl rounded-[12px] border border-border bg-white p-6 shadow-enterprise dark:bg-card">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-navy dark:text-white">Override Recommendation</h2>
@@ -64,10 +64,10 @@ export function OverrideDialog({
             <div className="mt-2 grid grid-cols-3 gap-2">
               {decisions.map((decision) => (
                 <button
-                  className={`focus-ring rounded-md border px-3 py-2 text-sm font-bold ${
+                  className={`focus-ring rounded-full border px-3 py-2 text-sm font-bold transition-all active:scale-95 ${
                     finalDecision === decision
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-border bg-white text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200"
+                      ? "border-greenAccent bg-greenLight/70 text-starbucks"
+                      : "border-border bg-white text-slate-600 hover:bg-greenLight/35 dark:bg-slate-900 dark:text-slate-200"
                   }`}
                   key={decision}
                   type="button"
@@ -84,7 +84,7 @@ export function OverrideDialog({
               Override Reason
             </label>
             <select
-              className="focus-ring mt-2 h-10 w-full rounded-md border border-input bg-white px-3 text-sm text-navy dark:bg-slate-900 dark:text-white"
+              className="focus-ring mt-2 h-10 w-full rounded-full border border-input bg-white px-4 text-sm text-navy dark:bg-slate-900 dark:text-white"
               id="override-reason"
               value={reason}
               onChange={(event) => setReason(event.target.value)}
@@ -103,7 +103,7 @@ export function OverrideDialog({
               <span className="text-xs text-muted-foreground">{comments.length}/300</span>
             </div>
             <textarea
-              className="focus-ring mt-2 h-32 w-full resize-none rounded-md border border-input bg-white px-3 py-2 text-sm text-navy placeholder:text-muted-foreground dark:bg-slate-900 dark:text-white"
+              className="focus-ring mt-2 h-32 w-full resize-none rounded-[12px] border border-input bg-white px-3 py-2 text-sm text-navy placeholder:text-muted-foreground dark:bg-slate-900 dark:text-white"
               id="override-comments"
               maxLength={300}
               placeholder="Document the control, exception, or timing context."

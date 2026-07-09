@@ -26,17 +26,23 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))"
         },
-        navy: "#0B1F3A",
+        navy: "#1E3932",
+        cream: "#F2F0EB",
+        ceramic: "#EDEBE9",
+        starbucks: "#006241",
+        greenAccent: "#00754A",
+        greenLight: "#D4E9E2",
+        gold: "#CBA258",
         act: "#DC2626",
         attend: "#F97316",
         track: "#16A34A"
       },
       boxShadow: {
-        enterprise: "0 18px 55px rgba(11, 31, 58, 0.08)",
-        row: "0 10px 24px rgba(11, 31, 58, 0.06)"
+        enterprise: "0 0 0.5px rgba(0, 0, 0, 0.14), 0 1px 1px rgba(0, 0, 0, 0.18)",
+        row: "0 0 0.5px rgba(0, 0, 0, 0.12), 0 1px 1px rgba(0, 0, 0, 0.12)"
       },
       fontFamily: {
-        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"]
+        sans: ["Inter", "Helvetica Neue", "Helvetica", "Arial", "ui-sans-serif", "system-ui", "sans-serif"]
       }
     }
   },

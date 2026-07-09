@@ -6,6 +6,11 @@ import type { Recommendation, Vulnerability } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Badge, RecommendationBadge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  deriveRecommendation,
+  getGovernanceDecision,
+  threatActorActivityLabel
+} from "@/lib/vulnerabilities";
 
 export function SummaryCard({
   label,
@@ -33,7 +38,7 @@ export function SummaryCard({
           <div className="mt-2 text-sm font-bold text-navy dark:text-white">{label}</div>
           <div className="mt-1 text-xs text-muted-foreground">{description}</div>
         </div>
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-lg", tone)}>
+        <div className={cn("flex h-10 w-10 items-center justify-center rounded-full", tone)}>
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -42,9 +47,9 @@ export function SummaryCard({
 }
 
 export const summaryConfig = {
-  ACT: { description: "Immediate action", icon: ShieldCheck },
-  ATTEND: { description: "Review and schedule", icon: Clock3 },
-  TRACK: { description: "Monitor exposure", icon: Activity }
+  ACT: { description: "Accelerated remediation", icon: ShieldCheck },
+  ATTEND: { description: "OLA scheduled review", icon: Clock3 },
+  TRACK: { description: "Standard monitoring", icon: Activity }
 } as const;
 
 export function RiskCard({
@@ -77,58 +82,72 @@ export function VulnerabilityTable({
   const router = useRouter();
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-white shadow-enterprise dark:bg-card">
+    <div className="overflow-hidden rounded-[12px] border border-border bg-white shadow-enterprise dark:bg-card">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] border-separate border-spacing-y-2 px-3 py-2 text-left">
+        <table className="w-full min-w-[1120px] border-separate border-spacing-y-2 px-3 py-2 text-left">
           <thead>
             <tr className="text-xs font-semibold text-slate-500">
               <th className="px-3 py-3">CVE</th>
               <th className="px-3 py-3">Product / Component</th>
-              <th className="px-3 py-3">CVSS</th>
-              <th className="px-3 py-3">EPSS</th>
-              <th className="px-3 py-3">KEV</th>
-              <th className="px-3 py-3">Asset Tier</th>
-              <th className="px-3 py-3">SSVC Recommendation</th>
+              <th className="px-3 py-3">DTCC Severity</th>
+              <th className="px-3 py-3">OLA</th>
+              <th className="px-3 py-3">Threat Activity</th>
+              <th className="px-3 py-3">Exposure</th>
+              <th className="px-3 py-3">Decision</th>
               <th className="px-3 py-3 text-right">Open</th>
             </tr>
           </thead>
           <tbody>
-            {vulnerabilities.map((vulnerability) => (
-              <tr
-                className="group cursor-pointer rounded-lg bg-white text-sm shadow-row transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-slate-900/35 dark:hover:bg-slate-800/70"
-                key={vulnerability.id}
-                role="link"
-                tabIndex={0}
-                onClick={() => router.push(`/cves/${vulnerability.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    router.push(`/cves/${vulnerability.id}`);
-                  }
-                }}
-              >
-                <td className="rounded-l-lg border-l-4 border-l-blue-600 px-3 py-3 font-bold text-blue-700">
-                  {vulnerability.id}
-                </td>
-                <td className="px-3 py-3 font-medium text-navy dark:text-white">{vulnerability.product}</td>
-                <td className="px-3 py-3 font-semibold">{vulnerability.cvss.toFixed(1)}</td>
-                <td className="px-3 py-3">{vulnerability.epss.toFixed(3)}</td>
-                <td className="px-3 py-3">
-                  <Badge tone={vulnerability.kev ? "red" : "slate"}>{vulnerability.kev ? "Yes" : "No"}</Badge>
-                </td>
-                <td className="px-3 py-3">
-                  <Badge tone="blue">{vulnerability.tier}</Badge>
-                </td>
-                <td className="px-3 py-3">
-                  <RecommendationBadge value={vulnerability.recommendation} />
-                </td>
-                <td className="rounded-r-lg px-3 py-3 text-right text-blue-700">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-md group-hover:bg-blue-50">
-                    <TrendingUp className="h-4 w-4 rotate-45" />
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {vulnerabilities.map((vulnerability) => {
+              const governance = getGovernanceDecision(vulnerability);
+              const recommendation = deriveRecommendation(vulnerability);
+
+              return (
+                <tr
+                  className="group cursor-pointer rounded-[12px] bg-white text-sm shadow-row transition-colors hover:bg-greenLight/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-slate-900/35 dark:hover:bg-slate-800/70"
+                  key={vulnerability.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/cves/${vulnerability.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      router.push(`/cves/${vulnerability.id}`);
+                    }
+                  }}
+                >
+                  <td className="rounded-l-lg border-l-4 border-l-greenAccent px-3 py-3 font-bold text-starbucks">
+                    {vulnerability.id}
+                  </td>
+                  <td className="px-3 py-3 font-medium text-navy dark:text-white">{vulnerability.product}</td>
+                  <td className="px-3 py-3">
+                    <div className="font-bold text-navy dark:text-white">{governance.score}</div>
+                    <Badge className="mt-1" tone={severityTone(governance.severityBand)}>
+                      {governance.severityBand}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-3 font-semibold">{governance.olaTarget}</td>
+                  <td className="px-3 py-3">
+                    <Badge tone={vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING" ? "red" : vulnerability.threatActorActivity === "ACTIVE_EXPLOITATION" ? "orange" : "slate"}>
+                      {threatActorActivityLabel(vulnerability.threatActorActivity)}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-3">
+                    <Badge tone={vulnerability.internetFacing ? "orange" : "blue"}>
+                      {vulnerability.internetFacing ? "External" : "Internal"}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-3">
+                    <RecommendationBadge value={recommendation} />
+                  </td>
+                  <td className="rounded-r-lg px-3 py-3 text-right text-starbucks">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full group-hover:bg-greenLight">
+                      <TrendingUp className="h-4 w-4 rotate-45" />
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -136,9 +155,16 @@ export function VulnerabilityTable({
   );
 }
 
+function severityTone(severity: string) {
+  if (severity === "Critical") return "red";
+  if (severity === "High") return "orange";
+  if (severity === "Medium") return "blue";
+  return "green";
+}
+
 export function EmptyState() {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-white p-10 text-center shadow-enterprise dark:bg-card">
+    <div className="rounded-[12px] border border-dashed border-border bg-white p-10 text-center shadow-enterprise dark:bg-card">
       <AlertTriangle className="mx-auto h-8 w-8 text-muted-foreground" />
       <div className="mt-3 text-sm font-semibold text-navy dark:text-white">No vulnerabilities match this view.</div>
       <div className="mt-1 text-sm text-muted-foreground">Try clearing search or changing the SSVC filter.</div>

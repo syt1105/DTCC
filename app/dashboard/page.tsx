@@ -5,7 +5,13 @@ import { AppShell } from "@/components/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, RecommendationBadge } from "@/components/ui/badge";
 import { ConfidenceRing } from "@/components/reasoning";
-import { getSummaryCounts, sortByRecommendationPriority, vulnerabilities } from "@/lib/vulnerabilities";
+import {
+  deriveRecommendation,
+  getGovernanceDecision,
+  getSummaryCounts,
+  sortByRecommendationPriority,
+  vulnerabilities
+} from "@/lib/vulnerabilities";
 import type { Recommendation } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -16,7 +22,10 @@ export default function DashboardPage() {
     vulnerabilities.reduce((sum, vulnerability) => sum + vulnerability.confidence, 0) / total
   );
   const kevCount = vulnerabilities.filter((vulnerability) => vulnerability.kev).length;
-  const internetFacing = vulnerabilities.filter((vulnerability) => vulnerability.internetFacing).length;
+  const accelerated = vulnerabilities.filter((vulnerability) => getGovernanceDecision(vulnerability).acceleratedRemediation).length;
+  const avgSeverity = Math.round(
+    vulnerabilities.reduce((sum, vulnerability) => sum + getGovernanceDecision(vulnerability).score, 0) / total
+  );
 
   return (
     <AppShell>
@@ -25,11 +34,11 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-navy dark:text-white">TVA Review Dashboard</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Executive view of AI-assisted prioritization, analyst throughput, and SSVC decision distribution.
+              Executive view of internal severity, OLA-driven remediation, and analyst decisions.
             </p>
           </div>
           <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-primary bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-blue-700"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-greenAccent bg-greenAccent px-5 text-sm font-semibold text-primary-foreground transition-all hover:bg-starbucks active:scale-95"
             href="/"
           >
             Open CVE Queue
@@ -40,15 +49,15 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric icon={ShieldAlert} label="Total Enriched CVEs" value={total} />
           <Metric icon={TrendingUp} label="KEV Listed" tone="red" value={kevCount} />
-          <Metric icon={Clock3} label="Internet Facing" tone="orange" value={internetFacing} />
-          <Metric icon={FileCheck2} label="Audit Coverage" tone="green" value="100%" />
+          <Metric icon={Clock3} label="Avg Internal Severity" tone="orange" value={avgSeverity} />
+          <Metric icon={FileCheck2} label="Accelerated Required" tone="red" value={accelerated} />
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1fr_1.35fr]">
           <Card>
             <CardHeader>
-              <CardTitle>SSVC Distribution</CardTitle>
-              <p className="text-sm text-muted-foreground">Current queue mix by AI recommendation.</p>
+              <CardTitle>Remediation Distribution</CardTitle>
+              <p className="text-sm text-muted-foreground">Current queue mix by OLA-driven decision.</p>
             </CardHeader>
             <CardContent className="space-y-4">
               {(["ACT", "ATTEND", "TRACK"] as Recommendation[]).map((item) => (
@@ -79,17 +88,20 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {priority.map((vulnerability) => (
                   <Link
-                    className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className="flex items-center justify-between gap-4 rounded-[12px] border border-border px-4 py-3 transition-colors hover:bg-greenLight/25 dark:hover:bg-slate-800"
                     href={`/cves/${vulnerability.id}`}
                     key={vulnerability.id}
                   >
                     <div className="min-w-0">
-                      <div className="font-bold text-blue-700">{vulnerability.id}</div>
+                      <div className="font-bold text-starbucks">{vulnerability.id}</div>
                       <div className="mt-1 truncate text-sm text-slate-600 dark:text-slate-300">{vulnerability.product}</div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <Badge tone={vulnerability.kev ? "red" : "slate"}>{vulnerability.kev ? "KEV" : "No KEV"}</Badge>
-                      <RecommendationBadge value={vulnerability.recommendation} />
+                      <Badge tone={getGovernanceDecision(vulnerability).acceleratedRemediation ? "red" : "blue"}>
+                        {getGovernanceDecision(vulnerability).olaTarget}
+                      </Badge>
+                      <RecommendationBadge value={deriveRecommendation(vulnerability)} />
                     </div>
                   </Link>
                 ))}
@@ -106,9 +118,9 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 md:grid-cols-4">
-                {["Correlate Evidence", "Apply SSVC Logic", "Explain Recommendation", "Record Decision"].map((step, index) => (
-                  <div className="rounded-lg border border-border bg-slate-50 p-4 dark:bg-slate-900" key={step}>
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-50 text-blue-700">
+                {["Correlate Evidence", "Score Internal Severity", "Assign OLA", "Record Decision"].map((step, index) => (
+                  <div className="rounded-[12px] border border-border bg-ceramic/60 p-4 dark:bg-slate-900" key={step}>
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-greenLight/70 text-starbucks">
                       {index === 0 ? <BrainCircuit className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                     </div>
                     <div className="mt-3 text-sm font-bold text-navy dark:text-white">{step}</div>
@@ -151,7 +163,7 @@ function Metric({
         ? "bg-orange-50 text-attend"
         : tone === "green"
           ? "bg-green-50 text-track"
-          : "bg-blue-50 text-blue-700";
+          : "bg-greenLight/60 text-starbucks";
 
   return (
     <Card className="p-5">
@@ -160,7 +172,7 @@ function Metric({
           <div className="text-3xl font-bold text-navy dark:text-white">{value}</div>
           <div className="mt-1 text-sm font-semibold text-muted-foreground">{label}</div>
         </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${toneClass}`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-full ${toneClass}`}>
           <Icon className="h-5 w-5" />
         </div>
       </div>

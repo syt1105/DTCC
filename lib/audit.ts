@@ -12,7 +12,12 @@ export const seedAuditEntries: AuditEntry[] = [
     finalDecision: "ACT",
     override: false,
     reason: "-",
-    status: "Approved"
+    status: "Approved",
+    decisionType: "AI Recommendation Retained",
+    dtccSeverityScore: 100,
+    dtccSeverityBand: "Critical",
+    olaTarget: "24 hours",
+    acceleratedRemediation: true
   },
   {
     id: "seed-2",
@@ -23,18 +28,28 @@ export const seedAuditEntries: AuditEntry[] = [
     finalDecision: "ATTEND",
     override: false,
     reason: "-",
-    status: "Approved"
+    status: "Approved",
+    decisionType: "AI Recommendation Retained",
+    dtccSeverityScore: 63,
+    dtccSeverityBand: "Medium",
+    olaTarget: "30 days",
+    acceleratedRemediation: false
   },
   {
     id: "seed-3",
     timestamp: "2026-06-30T02:15:00.000Z",
     analyst: "Analyst C",
     cve: "CVE-2024-47575",
-    recommendation: "TRACK",
-    finalDecision: "TRACK",
+    recommendation: "ATTEND",
+    finalDecision: "ATTEND",
     override: false,
     reason: "-",
-    status: "Approved"
+    status: "Approved",
+    decisionType: "AI Recommendation Retained",
+    dtccSeverityScore: 58,
+    dtccSeverityBand: "Medium",
+    olaTarget: "30 days",
+    acceleratedRemediation: false
   },
   {
     id: "seed-4",
@@ -46,7 +61,12 @@ export const seedAuditEntries: AuditEntry[] = [
     override: true,
     reason: "Maintenance Window",
     status: "Overridden",
-    comments: "System maintenance window is scheduled."
+    comments: "System maintenance window is scheduled.",
+    decisionType: "Human Override",
+    dtccSeverityScore: 100,
+    dtccSeverityBand: "Critical",
+    olaTarget: "24 hours",
+    acceleratedRemediation: true
   }
 ];
 

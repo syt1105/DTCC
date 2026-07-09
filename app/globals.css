@@ -3,16 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --background: 216 33% 97%;
-  --foreground: 222 47% 11%;
+  --background: 40 19% 94%;
+  --foreground: 0 0% 0%;
   --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --muted: 214 32% 91%;
-  --muted-foreground: 215 16% 42%;
-  --border: 214 32% 88%;
-  --input: 214 32% 88%;
-  --ring: 221 83% 53%;
-  --primary: 220 82% 43%;
+  --card-foreground: 159 31% 17%;
+  --muted: 40 12% 90%;
+  --muted-foreground: 215 12% 42%;
+  --border: 210 18% 84%;
+  --input: 210 18% 84%;
+  --ring: 157 100% 23%;
+  --primary: 157 100% 23%;
   --primary-foreground: 0 0% 100%;
 }
 
@@ -40,10 +40,9 @@ html {
 body {
   min-height: 100%;
   margin: 0;
-  color: hsl(var(--foreground));
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.10), transparent 32rem),
-    linear-gradient(180deg, #f8fbff 0%, hsl(var(--background)) 36%);
+  color: rgba(0, 0, 0, 0.87);
+  letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #f2f0eb 0%, #edebe9 100%);
 }
 
 button,
@@ -55,13 +54,11 @@ textarea {
 
 ::selection {
   color: white;
-  background: #0b4fd7;
+  background: #00754a;
 }
 
 .dark body {
-  background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 32rem),
-    hsl(var(--background));
+  background: hsl(var(--background));
 }
 
 .focus-ring {

@@ -32,12 +32,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <aside className="flex border-b border-white/10 bg-navy text-white lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:flex-col lg:border-b-0">
         <div className="flex w-full items-center justify-between px-4 py-4 lg:flex-col lg:items-stretch lg:p-6">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="flex h-12 w-28 items-center justify-center rounded-lg border border-white/10 bg-white px-3 shadow-lg shadow-blue-950/20">
+            <div className="flex h-12 w-28 items-center justify-center rounded-[12px] border border-white/10 bg-white px-3 shadow-lg shadow-black/15">
               <img alt="DTCC" className="h-auto w-full" src="/dtcc-logo.svg" />
             </div>
             <div>
               <div className="text-base font-semibold">TVA Review</div>
-              <div className="hidden text-xs text-blue-100/70 lg:block">AI assistant for SSVC Framework</div>
+              <div className="hidden text-xs text-greenLight/80 lg:block">AI assistant for SSVC Framework</div>
             </div>
           </Link>
 
@@ -51,13 +51,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="hidden space-y-4 lg:block">
             <Link
-              className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-blue-100/80 hover:bg-white/10 hover:text-white"
+              className="flex w-full items-center gap-3 rounded-full px-3 py-2 text-left text-sm text-greenLight/80 hover:bg-white/10 hover:text-white"
               href="/settings"
             >
               <Settings className="h-4 w-4" />
               Settings
             </Link>
-            <div className="flex items-end justify-between border-t border-white/10 pt-4 text-xs text-blue-100/70">
+            <div className="flex items-end justify-between border-t border-white/10 pt-4 text-xs text-greenLight/75">
               <div>
                 <div>Last updated</div>
                 <div className="mt-1 text-white">Jun 30, 2026 10:24 AM</div>
@@ -123,8 +123,8 @@ function NavLink({
   return (
     <Link
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-blue-100/80 transition-colors hover:bg-white/10 hover:text-white",
-        active && "bg-blue-600 text-white shadow-lg shadow-blue-950/25",
+        "flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium text-greenLight/80 transition-colors hover:bg-white/10 hover:text-white",
+        active && "bg-greenAccent text-white shadow-lg shadow-black/15",
         compact && "h-11 justify-center px-2 text-xs"
       )}
       href={href}

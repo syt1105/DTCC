@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState, SummaryCard, VulnerabilityTable, summaryConfig } from "@/components/dashboard-widgets";
 import type { Recommendation } from "@/lib/types";
-import { getSummaryCounts, sortByRecommendationPriority, vulnerabilities } from "@/lib/vulnerabilities";
+import {
+  deriveRecommendation,
+  getSummaryCounts,
+  sortByRecommendationPriority,
+  threatActorActivityLabel,
+  vulnerabilities
+} from "@/lib/vulnerabilities";
 
 const filterOptions: Array<Recommendation | "ALL"> = ["ALL", "ACT", "ATTEND", "TRACK"];
 
@@ -24,9 +30,10 @@ export default function QueuePage() {
           !normalized ||
           vulnerability.id.toLowerCase().includes(normalized) ||
           vulnerability.product.toLowerCase().includes(normalized) ||
-          vulnerability.businessUnit.toLowerCase().includes(normalized);
+          vulnerability.businessUnit.toLowerCase().includes(normalized) ||
+          threatActorActivityLabel(vulnerability.threatActorActivity).toLowerCase().includes(normalized);
 
-        const matchesFilter = filter === "ALL" || vulnerability.recommendation === filter;
+        const matchesFilter = filter === "ALL" || deriveRecommendation(vulnerability) === filter;
         return matchesSearch && matchesFilter;
       })
       .sort(sortByRecommendationPriority);
@@ -55,7 +62,7 @@ export default function QueuePage() {
             <div className="flex gap-2">
               {filterOptions.map((option) => (
                 <Button
-                  className={filter === option ? "bg-navy text-white hover:bg-navy" : ""}
+                  className={filter === option ? "border-greenAccent bg-greenAccent text-white hover:bg-starbucks" : ""}
                   key={option}
                   size="sm"
                   variant="outline"

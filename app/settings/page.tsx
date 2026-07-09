@@ -63,10 +63,10 @@ export default function SettingsPage() {
               {settings.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div className="rounded-lg border border-border bg-slate-50 p-4 dark:bg-slate-900" key={item.title}>
+                  <div className="rounded-[12px] border border-border bg-ceramic/60 p-4 dark:bg-slate-900" key={item.title}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-greenLight/70 text-starbucks">
                           <Icon className="h-5 w-5" />
                         </div>
                         <div>

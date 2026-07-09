@@ -1,5 +1,12 @@
 import vulnerabilitiesData from "@/data/vulnerabilities.json";
-import type { DecisionPathStep, Recommendation, Vulnerability } from "@/lib/types";
+import type {
+  DecisionPathStep,
+  OlaTarget,
+  Recommendation,
+  SeverityBand,
+  ThreatActorActivity,
+  Vulnerability
+} from "@/lib/types";
 
 export const vulnerabilities = vulnerabilitiesData as Vulnerability[];
 
@@ -28,7 +35,7 @@ export function leftBorderTone(recommendation: Recommendation) {
 export function getSummaryCounts() {
   return vulnerabilities.reduce(
     (summary, vulnerability) => {
-      summary[vulnerability.recommendation] += 1;
+      summary[deriveRecommendation(vulnerability)] += 1;
       return summary;
     },
     { ACT: 0, ATTEND: 0, TRACK: 0 } as Record<Recommendation, number>
@@ -36,42 +43,12 @@ export function getSummaryCounts() {
 }
 
 export function deriveRecommendation(vulnerability: Vulnerability): Recommendation {
-  const factors = deriveSsvcFactorValues(vulnerability);
-
-  if (
-    factors.exploitation === "Active" &&
-    ((factors.technicalImpact === "Total" &&
-      (factors.businessImpact === "High" || factors.missionPrevalence === "High")) ||
-      (factors.businessImpact === "High" && factors.automatable !== "No"))
-  ) {
+  if (deriveAcceleratedRemediation(vulnerability)) {
     return "ACT";
   }
 
-  if (
-    factors.exploitation === "Active" &&
-    factors.technicalImpact === "Total" &&
-    vulnerability.tier !== "Tier 3"
-  ) {
-    return "ACT";
-  }
-
-  if (
-    factors.exploitation === "Active" &&
-    (factors.technicalImpact === "Total" ||
-      factors.automatable !== "No" ||
-      factors.missionPrevalence !== "Low" ||
-      factors.businessImpact !== "Low")
-  ) {
-    return "ATTEND";
-  }
-
-  if (
-    factors.exploitation === "PoC / likely" &&
-    (factors.technicalImpact !== "Limited" ||
-      factors.automatable !== "No" ||
-      factors.missionPrevalence !== "Low" ||
-      factors.businessImpact !== "Low")
-  ) {
+  const score = deriveDtccSeverityScore(vulnerability);
+  if (score >= 55) {
     return "ATTEND";
   }
 
@@ -80,7 +57,7 @@ export function deriveRecommendation(vulnerability: Vulnerability): Recommendati
 
 export function buildReasoning(vulnerability: Vulnerability) {
   const recommendation = deriveRecommendation(vulnerability);
-  const evidence = ["CVE.org / NVD", "CISA KEV", "FIRST EPSS", "Mock Asset Inventory", "Simulated Threat Intelligence"];
+  const evidence = ["CVE.org / NVD", "CISA KEV", "FIRST EPSS", "Mock Asset Inventory", "Threat Activity Model"];
   const decisionPath = buildDecisionPath(vulnerability, recommendation);
   const log = decisionPath.map((step) => `${step.label}: ${step.value}. ${step.rationale}`);
 
@@ -93,121 +70,159 @@ export function buildReasoning(vulnerability: Vulnerability) {
   };
 }
 
-function deriveSsvcFactorValues(vulnerability: Vulnerability) {
-  const exploitation = vulnerability.kev
-    ? "Active"
-    : vulnerability.epss >= 0.7
-      ? "PoC / likely"
-      : "Monitored";
+export function threatActorActivityLabel(activity: ThreatActorActivity) {
+  if (activity === "FINANCIAL_SECTOR_TARGETING") return "Financial sector targeting";
+  if (activity === "ACTIVE_EXPLOITATION") return "Active exploitation";
+  return "No known activity";
+}
 
-  const automatable =
-    vulnerability.internetFacing && (vulnerability.cvss >= 8.5 || vulnerability.epss >= 0.7)
-      ? "Yes"
-      : vulnerability.internetFacing || vulnerability.epss >= 0.7
-        ? "Limited"
-        : "No";
+export function threatActorActivityTone(activity: ThreatActorActivity): Recommendation | "neutral" {
+  if (activity === "FINANCIAL_SECTOR_TARGETING") return "ACT";
+  if (activity === "ACTIVE_EXPLOITATION") return "ATTEND";
+  return "TRACK";
+}
 
-  const technicalImpact =
-    vulnerability.cvss >= 9 ? "Total" : vulnerability.cvss >= 7 ? "Partial" : "Limited";
+export function deriveDtccSeverityScore(vulnerability: Vulnerability) {
+  let score = 0;
 
-  const missionPrevalence =
-    vulnerability.tier === "Tier 1" || vulnerability.businessCritical
-      ? "High"
-      : vulnerability.tier === "Tier 2"
-        ? "Medium"
-        : "Low";
+  score += vulnerability.cvss >= 9 ? 12 : vulnerability.cvss >= 7 ? 8 : 4;
+  score += Math.round(vulnerability.epss * 18);
+  score += vulnerability.kev ? 12 : 0;
+  score += vulnerability.internetFacing ? 12 : 0;
+  score += vulnerability.tier === "Tier 1" ? 12 : vulnerability.tier === "Tier 2" ? 7 : 3;
+  score += vulnerability.businessCritical ? 8 : 0;
+  score += vulnerability.missionDependency === "High" ? 8 : vulnerability.missionDependency === "Medium" ? 4 : 0;
+  score += vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING" ? 18 : 0;
+  score += vulnerability.threatActorActivity === "ACTIVE_EXPLOITATION" ? 10 : 0;
 
-  const businessImpact =
-    vulnerability.missionDependency === "High"
-      ? "High"
-      : vulnerability.businessCritical || vulnerability.missionDependency === "Medium"
-        ? "Medium"
-        : "Low";
+  return Math.min(100, score);
+}
+
+export function deriveSeverityBand(score: number): SeverityBand {
+  if (score >= 90) return "Critical";
+  if (score >= 75) return "High";
+  if (score >= 55) return "Medium";
+  return "Low";
+}
+
+export function deriveOlaTarget(score: number): OlaTarget {
+  if (score >= 90) return "24 hours";
+  if (score >= 75) return "7 days";
+  if (score >= 55) return "30 days";
+  return "Next cycle";
+}
+
+export function deriveAcceleratedRemediation(vulnerability: Vulnerability) {
+  const score = deriveDtccSeverityScore(vulnerability);
+  return (
+    score >= 90 ||
+    vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING" ||
+    (vulnerability.kev &&
+      vulnerability.internetFacing &&
+      (vulnerability.tier === "Tier 1" || vulnerability.businessCritical))
+  );
+}
+
+export function getGovernanceDecision(vulnerability: Vulnerability) {
+  const score = deriveDtccSeverityScore(vulnerability);
+  const severityBand = deriveSeverityBand(score);
+  const olaTarget = deriveOlaTarget(score);
+  const acceleratedRemediation = deriveAcceleratedRemediation(vulnerability);
+  const recommendation = deriveRecommendation(vulnerability);
 
   return {
-    exploitation,
-    automatable,
-    technicalImpact,
-    missionPrevalence,
-    businessImpact
+    score,
+    severityBand,
+    olaTarget,
+    acceleratedRemediation,
+    recommendation
   };
 }
 
 function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recommendation): DecisionPathStep[] {
-  const factors = deriveSsvcFactorValues(vulnerability);
+  const governance = getGovernanceDecision(vulnerability);
+  const threatTone = threatActorActivityTone(vulnerability.threatActorActivity);
+  const exposureValue = vulnerability.internetFacing ? "Internet-facing" : "Internal";
+  const businessRisk =
+    vulnerability.businessCritical || vulnerability.missionDependency === "High"
+      ? "High"
+      : vulnerability.missionDependency === "Medium"
+        ? "Medium"
+        : "Low";
 
   return [
     {
-      label: "Exploitation",
-      value: factors.exploitation,
+      label: "Threat Activity",
+      value: threatActorActivityLabel(vulnerability.threatActorActivity),
       source: vulnerability.kev
         ? `CISA KEV${vulnerability.kevDateAdded ? `, added ${vulnerability.kevDateAdded}` : ""}`
-        : `FIRST EPSS ${vulnerability.epss.toFixed(5)} as of ${vulnerability.epssDate}`,
-      rationale: vulnerability.kev
-        ? "Observed exploitation is confirmed by CISA KEV."
-        : vulnerability.epss >= 0.7
-          ? "The CVE is not in KEV, but EPSS indicates elevated exploitation likelihood."
-          : "No KEV listing and EPSS does not indicate elevated near-term likelihood.",
-      tone: vulnerability.kev ? "ACT" : vulnerability.epss >= 0.7 ? "ATTEND" : "TRACK"
-    },
-    {
-      label: "Automatable",
-      value: factors.automatable,
-      source: `${vulnerability.internetFacing ? "Internet-facing" : "Internal"} asset, CVSS ${vulnerability.cvss.toFixed(1)}`,
+        : "Simulated threat activity assessment",
       rationale:
-        factors.automatable === "Yes"
-          ? "External exposure and high exploitability make repeatable exploitation plausible."
-          : factors.automatable === "Limited"
-            ? "Some exploitability indicators exist, but exposure or severity reduces confidence."
-            : "Internal-only exposure and lower exploitability reduce automation concerns.",
-      tone: factors.automatable === "Yes" ? "ACT" : factors.automatable === "Limited" ? "ATTEND" : "TRACK"
+        vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING"
+          ? "Threat actors are modeled as targeting the financial sector, increasing urgency beyond generic exploitation."
+          : vulnerability.threatActorActivity === "ACTIVE_EXPLOITATION"
+            ? "Threat actors are modeled as actively leveraging exploitation, but not specifically against financial institutions."
+            : "No known threat actor activity is modeled for this PoC record.",
+      tone: threatTone
     },
     {
-      label: "Technical Impact",
-      value: factors.technicalImpact,
-      source: vulnerability.cvssSource,
+      label: "Exposure",
+      value: exposureValue,
+      source: `${vulnerability.tier}, ${vulnerability.internetFacing ? "external exposure" : "internal exposure"}`,
       rationale:
-        factors.technicalImpact === "Total"
-          ? `CVSS ${vulnerability.cvss.toFixed(1)} indicates critical technical impact.`
-          : factors.technicalImpact === "Partial"
-            ? `CVSS ${vulnerability.cvss.toFixed(1)} indicates meaningful but not total impact.`
-            : `CVSS ${vulnerability.cvss.toFixed(1)} indicates limited technical impact.`,
-      tone: factors.technicalImpact === "Total" ? "ACT" : factors.technicalImpact === "Partial" ? "ATTEND" : "TRACK"
+        vulnerability.internetFacing
+          ? "Internet-facing exposure increases the probability that exploitation can reach enterprise assets."
+          : "Internal-only exposure lowers urgency unless business or threat context raises the score.",
+      tone: vulnerability.internetFacing ? "ATTEND" : "TRACK"
     },
     {
-      label: "Mission Prevalence",
-      value: factors.missionPrevalence,
-      source: `${vulnerability.tier}${vulnerability.businessCritical ? ", business critical" : ""}`,
-      rationale:
-        factors.missionPrevalence === "High"
-          ? "The affected asset is central enough to influence remediation urgency."
-          : factors.missionPrevalence === "Medium"
-            ? "The affected asset is important, but not the highest tier in this PoC context."
-            : "The affected asset has limited mission prevalence in this PoC context.",
-      tone: factors.missionPrevalence === "High" ? "ACT" : factors.missionPrevalence === "Medium" ? "ATTEND" : "TRACK"
-    },
-    {
-      label: "Business Impact",
-      value: factors.businessImpact,
+      label: "Business Risk",
+      value: businessRisk,
       source: `${vulnerability.businessUnit}, mission dependency ${vulnerability.missionDependency}`,
       rationale:
-        factors.businessImpact === "High"
-          ? "Service disruption or compromise would materially affect mission delivery."
-          : factors.businessImpact === "Medium"
-            ? "Business impact is meaningful but does not trigger the highest response tier alone."
+        businessRisk === "High"
+          ? "Business context indicates material mission or operational impact."
+          : businessRisk === "Medium"
+            ? "Business impact is meaningful, but not the highest internal risk tier."
             : "Business impact is limited in the simulated enterprise context.",
-      tone: factors.businessImpact === "High" ? "ACT" : factors.businessImpact === "Medium" ? "ATTEND" : "TRACK"
+      tone: businessRisk === "High" ? "ACT" : businessRisk === "Medium" ? "ATTEND" : "TRACK"
     },
     {
-      label: "SSVC Decision",
-      value: recommendation,
-      source: "SSVC-inspired PoC decision policy",
+      label: "DTCC Severity",
+      value: `${governance.score} / 100`,
+      source: "Simulated internal severity score",
       rationale:
-        recommendation === "ACT"
-          ? "Active or highly likely exploitation intersects with material mission or business impact."
+        "The score combines exposure, business risk, CISA KEV, EPSS, CVSS, and threat activity instead of relying on CVSS alone.",
+      tone:
+        governance.severityBand === "Critical"
+          ? "ACT"
+          : governance.severityBand === "High" || governance.severityBand === "Medium"
+            ? "ATTEND"
+            : "TRACK"
+    },
+    {
+      label: "OLA Target",
+      value: governance.olaTarget,
+      source: `${governance.severityBand} internal severity`,
+      rationale:
+        "Operations Level Agreement is driven by DTCC-style internal severity, not by CVSS severity alone.",
+      tone:
+        governance.olaTarget === "24 hours"
+          ? "ACT"
+          : governance.olaTarget === "7 days" || governance.olaTarget === "30 days"
+            ? "ATTEND"
+            : "TRACK"
+    },
+    {
+      label: "Remediation Decision",
+      value: recommendation,
+      source: governance.acceleratedRemediation ? "Accelerated remediation required" : "Standard OLA workflow",
+      rationale:
+        governance.acceleratedRemediation
+          ? "Emergency criteria focus on accelerated remediation for high internal severity or targeted financial-sector threat activity."
           : recommendation === "ATTEND"
-            ? "The issue warrants scheduled analyst attention, but not immediate emergency action."
-            : "The issue should remain visible, but current factors support monitoring over action.",
+            ? "The issue should be scheduled under the OLA target without emergency remediation."
+            : "The issue remains visible for tracking under the next standard review cycle.",
       tone: recommendation
     }
   ];
@@ -220,5 +235,9 @@ export function getDefaultOverrideDecision(recommendation: Recommendation): Reco
 }
 
 export function sortByRecommendationPriority(a: Vulnerability, b: Vulnerability) {
-  return severityRank[b.recommendation] - severityRank[a.recommendation] || b.cvss - a.cvss;
+  return (
+    severityRank[deriveRecommendation(b)] - severityRank[deriveRecommendation(a)] ||
+    deriveDtccSeverityScore(b) - deriveDtccSeverityScore(a) ||
+    b.cvss - a.cvss
+  );
 }

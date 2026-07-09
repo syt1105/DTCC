@@ -17,6 +17,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "High",
+    "threatActorActivity": "FINANCIAL_SECTOR_TARGETING",
     "recommendation": "ACT",
     "confidence": 96
   },
@@ -38,6 +39,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "High",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
     "recommendation": "ACT",
     "confidence": 94
   },
@@ -59,7 +61,8 @@
     "internetFacing": false,
     "businessCritical": true,
     "missionDependency": "Medium",
-    "recommendation": "ACT",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
+    "recommendation": "ATTEND",
     "confidence": 86
   },
   {
@@ -80,6 +83,7 @@
     "internetFacing": false,
     "businessCritical": false,
     "missionDependency": "Medium",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
     "recommendation": "ATTEND",
     "confidence": 82
   },
@@ -101,6 +105,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "High",
+    "threatActorActivity": "FINANCIAL_SECTOR_TARGETING",
     "recommendation": "ACT",
     "confidence": 95
   },
@@ -122,6 +127,7 @@
     "internetFacing": true,
     "businessCritical": false,
     "missionDependency": "Medium",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
     "recommendation": "ATTEND",
     "confidence": 84
   },
@@ -143,6 +149,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "High",
+    "threatActorActivity": "FINANCIAL_SECTOR_TARGETING",
     "recommendation": "ACT",
     "confidence": 97
   },
@@ -164,7 +171,8 @@
     "internetFacing": false,
     "businessCritical": true,
     "missionDependency": "High",
-    "recommendation": "ATTEND",
+    "threatActorActivity": "NO_KNOWN_ACTIVITY",
+    "recommendation": "TRACK",
     "confidence": 81
   },
   {
@@ -185,6 +193,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "High",
+    "threatActorActivity": "FINANCIAL_SECTOR_TARGETING",
     "recommendation": "ACT",
     "confidence": 95
   },
@@ -206,6 +215,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "Medium",
+    "threatActorActivity": "NO_KNOWN_ACTIVITY",
     "recommendation": "ATTEND",
     "confidence": 82
   },
@@ -227,6 +237,7 @@
     "internetFacing": true,
     "businessCritical": false,
     "missionDependency": "Medium",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
     "recommendation": "ATTEND",
     "confidence": 78
   },
@@ -248,6 +259,7 @@
     "internetFacing": false,
     "businessCritical": false,
     "missionDependency": "Low",
+    "threatActorActivity": "NO_KNOWN_ACTIVITY",
     "recommendation": "TRACK",
     "confidence": 70
   },
@@ -269,6 +281,7 @@
     "internetFacing": true,
     "businessCritical": true,
     "missionDependency": "High",
+    "threatActorActivity": "FINANCIAL_SECTOR_TARGETING",
     "recommendation": "ACT",
     "confidence": 94
   },
@@ -290,7 +303,8 @@
     "internetFacing": false,
     "businessCritical": true,
     "missionDependency": "High",
-    "recommendation": "ACT",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
+    "recommendation": "ATTEND",
     "confidence": 92
   },
   {
@@ -311,6 +325,7 @@
     "internetFacing": true,
     "businessCritical": false,
     "missionDependency": "Low",
+    "threatActorActivity": "ACTIVE_EXPLOITATION",
     "recommendation": "ATTEND",
     "confidence": 83
   }

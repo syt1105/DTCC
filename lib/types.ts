@@ -2,13 +2,22 @@ export type Recommendation = "ACT" | "ATTEND" | "TRACK";
 
 export type MissionDependency = "High" | "Medium" | "Low";
 
-export type SsvcFactorName =
-  | "Exploitation"
-  | "Automatable"
-  | "Technical Impact"
-  | "Mission Prevalence"
-  | "Business Impact"
-  | "SSVC Decision";
+export type ThreatActorActivity =
+  | "NO_KNOWN_ACTIVITY"
+  | "ACTIVE_EXPLOITATION"
+  | "FINANCIAL_SECTOR_TARGETING";
+
+export type SeverityBand = "Critical" | "High" | "Medium" | "Low";
+
+export type OlaTarget = "24 hours" | "7 days" | "30 days" | "Next cycle";
+
+export type DecisionFactorName =
+  | "Threat Activity"
+  | "Exposure"
+  | "Business Risk"
+  | "DTCC Severity"
+  | "OLA Target"
+  | "Remediation Decision";
 
 export type Vulnerability = {
   id: string;
@@ -28,12 +37,13 @@ export type Vulnerability = {
   internetFacing: boolean;
   businessCritical: boolean;
   missionDependency: MissionDependency;
+  threatActorActivity: ThreatActorActivity;
   recommendation: Recommendation;
   confidence: number;
 };
 
 export type DecisionPathStep = {
-  label: SsvcFactorName;
+  label: DecisionFactorName;
   value: string;
   source: string;
   rationale: string;
@@ -59,4 +69,9 @@ export type AuditEntry = {
   reason: string;
   status: "Approved" | "Overridden";
   comments?: string;
+  decisionType?: "AI Recommendation Retained" | "Human Override";
+  dtccSeverityScore?: number;
+  dtccSeverityBand?: SeverityBand;
+  olaTarget?: OlaTarget;
+  acceleratedRemediation?: boolean;
 };
