@@ -1,4 +1,5 @@
 import { Bell, Database, Moon, ShieldCheck, SlidersHorizontal, UserCheck } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { AppShell } from "@/components/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,12 +47,11 @@ export default function SettingsPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-navy dark:text-white">Settings</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Prototype configuration for the AI-assisted TVA review workflow.
-          </p>
-        </div>
+        <PageHeader
+          description="Prototype configuration for the AI-assisted TVA review workflow."
+          eyebrow="Prototype Configuration"
+          title="Settings"
+        />
 
         <Card>
           <CardHeader>
@@ -59,22 +59,24 @@ export default function SettingsPage() {
             <p className="text-sm text-muted-foreground">This page is intentionally read-only for the PoC.</p>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-5 xl:grid-cols-2">
               {settings.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <div className="rounded-[12px] border border-border bg-ceramic/60 p-4 dark:bg-slate-900" key={item.title}>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-greenLight/70 text-starbucks">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-navy dark:text-white">{item.title}</div>
-                          <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p>
-                        </div>
+                  <div className="rounded-[12px] border border-border bg-ceramic/60 p-5 dark:bg-slate-900" key={item.title}>
+                    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-greenLight/70 text-starbucks">
+                        <Icon className="h-5 w-5" />
                       </div>
-                      <Badge tone="blue">{item.value}</Badge>
+                      <div className="min-w-0">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                          <div className="font-bold text-navy dark:text-white">{item.title}</div>
+                          <Badge className="h-auto w-fit shrink-0 whitespace-normal px-2.5 py-1 text-center leading-5" tone="blue">
+                            {item.value}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 break-words text-sm leading-6 text-muted-foreground">{item.description}</p>
+                      </div>
                     </div>
                   </div>
                 );

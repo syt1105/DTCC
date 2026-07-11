@@ -6,6 +6,7 @@ import {
   BarChart3,
   ClipboardList,
   History,
+  LineChart,
   RefreshCcw,
   Settings,
   SunMoon
@@ -17,7 +18,8 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/", label: "CVE Queue", icon: ClipboardList },
-  { href: "/audit", label: "Audit Log", icon: History }
+  { href: "/audit", label: "Audit Log", icon: History },
+  { href: "/report", label: "Weekly Report", icon: LineChart }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

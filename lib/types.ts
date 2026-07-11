@@ -40,6 +40,9 @@ export type Vulnerability = {
   threatActorActivity: ThreatActorActivity;
   recommendation: Recommendation;
   confidence: number;
+  vulnerableVersions?: string[];
+  availableFixes?: string[];
+  remediationStatus?: "Open" | "Scheduled" | "In Progress" | "Remediated" | "Dismissed";
 };
 
 export type DecisionPathStep = {
@@ -67,9 +70,9 @@ export type AuditEntry = {
   finalDecision: Recommendation;
   override: boolean;
   reason: string;
-  status: "Approved" | "Overridden";
+  status: "Approved" | "Overridden" | "Dismissed";
   comments?: string;
-  decisionType?: "AI Recommendation Retained" | "Human Override";
+  decisionType?: "AI Recommendation Retained" | "Human Override" | "Dismissed as Not Applicable";
   dtccSeverityScore?: number;
   dtccSeverityBand?: SeverityBand;
   olaTarget?: OlaTarget;

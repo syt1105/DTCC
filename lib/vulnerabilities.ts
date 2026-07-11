@@ -10,6 +10,86 @@ import type {
 
 export const vulnerabilities = vulnerabilitiesData as Vulnerability[];
 
+export const batchLookupCatalog: Vulnerability[] = [
+  {
+    id: "CVE-2024-28995",
+    product: "SolarWinds Serv-U",
+    cveTitle: "SolarWinds Serv-U Directory Traversal Vulnerability",
+    description: "Directory traversal vulnerability in SolarWinds Serv-U that may allow access to sensitive files.",
+    cvss: 8.6,
+    cvssSource: "CVE.org CNA record, CVSS v3.1",
+    epss: 0.82,
+    epssPercentile: 0.96,
+    epssDate: "2026-06-29",
+    kev: true,
+    kevDateAdded: "2024-07-17",
+    kevSource: "CISA Known Exploited Vulnerabilities Catalog",
+    tier: "Tier 2",
+    businessUnit: "Managed File Transfer",
+    internetFacing: true,
+    businessCritical: true,
+    missionDependency: "High",
+    threatActorActivity: "ACTIVE_EXPLOITATION",
+    recommendation: "ACT",
+    confidence: 91,
+    vulnerableVersions: ["Serv-U 15.4.2 HF1 and earlier"],
+    availableFixes: ["Upgrade to Serv-U 15.4.2 HF2 or later", "Restrict management interface exposure"],
+    remediationStatus: "Scheduled"
+  },
+  {
+    id: "CVE-2024-40766",
+    product: "SonicWall SonicOS",
+    cveTitle: "SonicWall SonicOS Improper Access Control Vulnerability",
+    description: "Improper access control vulnerability affecting SonicWall firewall management and SSLVPN surfaces.",
+    cvss: 9.3,
+    cvssSource: "CVE.org CNA record, CVSS v3.1",
+    epss: 0.74,
+    epssPercentile: 0.94,
+    epssDate: "2026-06-29",
+    kev: true,
+    kevDateAdded: "2024-09-09",
+    kevSource: "CISA Known Exploited Vulnerabilities Catalog",
+    tier: "Tier 1",
+    businessUnit: "Network Security",
+    internetFacing: true,
+    businessCritical: true,
+    missionDependency: "High",
+    threatActorActivity: "FINANCIAL_SECTOR_TARGETING",
+    recommendation: "ACT",
+    confidence: 94,
+    vulnerableVersions: ["SonicOS 7.0.1-5035 and earlier", "SonicOS 7.1.1-7051 and earlier"],
+    availableFixes: ["Upgrade to SonicOS vendor fixed release", "Disable WAN management until patched"],
+    remediationStatus: "Open"
+  },
+  {
+    id: "CVE-2025-0108",
+    product: "Palo Alto Networks PAN-OS",
+    cveTitle: "PAN-OS Management Interface Authentication Bypass Vulnerability",
+    description: "Authentication bypass vulnerability affecting exposed PAN-OS management interfaces.",
+    cvss: 8.8,
+    cvssSource: "CVE.org CNA record, CVSS v3.1",
+    epss: 0.68,
+    epssPercentile: 0.92,
+    epssDate: "2026-06-29",
+    kev: false,
+    kevDateAdded: null,
+    kevSource: "CISA Known Exploited Vulnerabilities Catalog",
+    tier: "Tier 1",
+    businessUnit: "Network Security",
+    internetFacing: true,
+    businessCritical: true,
+    missionDependency: "High",
+    threatActorActivity: "ACTIVE_EXPLOITATION",
+    recommendation: "ATTEND",
+    confidence: 86,
+    vulnerableVersions: ["PAN-OS 10.2 prior to fixed maintenance release", "PAN-OS 11.1 prior to fixed maintenance release"],
+    availableFixes: ["Apply vendor hotfix", "Restrict management interface to trusted admin network"],
+    remediationStatus: "Open"
+  }
+];
+
+export const allVulnerabilityCatalog = [...vulnerabilities, ...batchLookupCatalog];
+
 const severityRank: Record<Recommendation, number> = {
   TRACK: 1,
   ATTEND: 2,
@@ -17,7 +97,14 @@ const severityRank: Record<Recommendation, number> = {
 };
 
 export function getVulnerability(id: string) {
-  return vulnerabilities.find((vulnerability) => vulnerability.id === id);
+  return allVulnerabilityCatalog.find((vulnerability) => vulnerability.id === id);
+}
+
+export function lookupVulnerabilities(ids: string[]) {
+  return ids.map((id) => ({
+    id,
+    vulnerability: allVulnerabilityCatalog.find((vulnerability) => vulnerability.id === id) ?? null
+  }));
 }
 
 export function recommendationTone(recommendation: Recommendation) {

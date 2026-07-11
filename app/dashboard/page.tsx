@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type React from "react";
 import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, FileCheck2, ShieldAlert, TrendingUp } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { AppShell } from "@/components/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, RecommendationBadge } from "@/components/ui/badge";
@@ -30,13 +31,11 @@ export default function DashboardPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-navy dark:text-white">TVA Review Dashboard</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Executive view of internal severity, OLA-driven remediation, and analyst decisions.
-            </p>
-          </div>
+        <PageHeader
+          description="Internal severity, OLA-driven remediation, and analyst decisions at a glance."
+          eyebrow="Executive Overview"
+          title="TVA Review Dashboard"
+          actions={
           <Link
             className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-greenAccent bg-greenAccent px-5 text-sm font-semibold text-primary-foreground transition-all hover:bg-starbucks active:scale-95"
             href="/"
@@ -44,7 +43,8 @@ export default function DashboardPage() {
             Open CVE Queue
             <ArrowRight className="h-4 w-4" />
           </Link>
-        </div>
+          }
+        />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Metric icon={ShieldAlert} label="Total Enriched CVEs" value={total} />

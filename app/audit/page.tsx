@@ -12,9 +12,11 @@ import {
   Shield,
   ShieldCheck,
   TriangleAlert,
-  UserRound
+  UserRound,
+  X
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/page-header";
 import { AppShell } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,14 +119,12 @@ export default function AuditPage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-navy dark:text-white">Audit Log</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              All analyst actions are securely recorded for governance and compliance.
-            </p>
-          </div>
-          <div className="flex gap-2">
+        <PageHeader
+          description="All analyst actions are securely recorded for governance and compliance."
+          eyebrow="Governance & Compliance"
+          title="Audit Log"
+          actions={
+            <>
             <Button
               className={showFilters ? "border-[#B9DED2] bg-greenLight/60 text-starbucks" : ""}
               variant="outline"
@@ -137,8 +137,9 @@ export default function AuditPage() {
               <Download className="h-4 w-4" />
               {exported ? "Exported" : exportError ? "Export Failed" : "Export Log"}
             </Button>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <AuditMetric
@@ -191,11 +192,12 @@ export default function AuditPage() {
             <FilterSelect
               ariaLabel="Decision type filter"
               value={decisionTypeFilter}
-              options={["ALL", "AI Recommendation Retained", "Human Override"]}
+              options={["ALL", "AI Recommendation Retained", "Human Override", "Dismissed as Not Applicable"]}
               labels={{
                 ALL: "All Decision Types",
                 "AI Recommendation Retained": "AI Retained",
-                "Human Override": "Human Override"
+                "Human Override": "Human Override",
+                "Dismissed as Not Applicable": "Dismissed"
               }}
               onChange={(value) => setDecisionTypeFilter(value as typeof decisionTypeFilter)}
             />
@@ -216,7 +218,7 @@ export default function AuditPage() {
 
         <div className="overflow-hidden rounded-[12px] border border-border bg-white shadow-enterprise dark:bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1220px] text-center">
+            <table className="w-full min-w-[1120px] text-center">
               <thead>
                 <tr className="border-b border-border bg-greenLight/20 text-xs font-bold text-slate-600">
                   <th className="px-4 py-5 text-center">Timestamp</th>
@@ -225,7 +227,6 @@ export default function AuditPage() {
                   <th className="px-4 py-5 text-center">Recommendation</th>
                   <th className="px-4 py-5 text-center">Final Decision</th>
                   <th className="px-4 py-5 text-center">Decision Type</th>
-                  <th className="px-4 py-5 text-center">Override?</th>
                   <th className="px-4 py-5 text-center">Reason</th>
                   <th className="px-4 py-5 text-center">Status</th>
                 </tr>
@@ -262,12 +263,11 @@ export default function AuditPage() {
                       <td className="px-4 py-6 text-center text-sm text-slate-600 dark:text-slate-300">
                         <DecisionTypeCell entry={entry} />
                       </td>
-                      <td className="px-4 py-6 text-center text-sm font-medium text-navy dark:text-white">
-                        {entry.override ? "Yes" : "No"}
-                      </td>
                       <td className="px-4 py-6 text-center text-sm text-slate-600 dark:text-slate-300">{entry.reason}</td>
                       <td className="px-4 py-6 text-center">
-                        <Badge tone={entry.status === "Approved" ? "green" : "orange"}>{entry.status}</Badge>
+                        <Badge tone={entry.status === "Approved" ? "green" : entry.status === "Dismissed" ? "slate" : "orange"}>
+                          {entry.status}
+                        </Badge>
                       </td>
                     </tr>
                   );
@@ -365,7 +365,7 @@ function AuditMetric({
       : tone === "orange"
         ? "bg-orange-50 text-attend"
         : "bg-greenLight/60 text-starbucks";
-  const descriptionClass =
+  const valueClass =
     tone === "green"
       ? "text-track"
       : tone === "orange"
@@ -374,14 +374,14 @@ function AuditMetric({
 
   return (
     <Card className="p-5">
-      <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] ${toneClass}`}>
-          <Icon className="h-6 w-6" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-2xl font-bold text-navy dark:text-white">{value}</div>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className={`text-3xl font-bold ${valueClass}`}>{value}</div>
           <div className="mt-2 text-sm font-bold text-navy dark:text-white">{label}</div>
-          <div className={`mt-1 text-xs font-medium ${descriptionClass}`}>{description}</div>
+          <div className="mt-1 text-xs text-muted-foreground">{description}</div>
+        </div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${toneClass}`}>
+          <Icon className="h-5 w-5" />
         </div>
       </div>
     </Card>
@@ -389,7 +389,9 @@ function AuditMetric({
 }
 
 function DecisionTypeCell({ entry }: { entry: AuditEntry }) {
-  const retained = (entry.decisionType ?? (entry.override ? "Human Override" : "AI Recommendation Retained")) === "AI Recommendation Retained";
+  const decisionType = entry.decisionType ?? (entry.override ? "Human Override" : "AI Recommendation Retained");
+  const retained = decisionType === "AI Recommendation Retained";
+  const dismissed = decisionType === "Dismissed as Not Applicable";
 
   return (
     <div className="flex items-center justify-center gap-3">
@@ -397,10 +399,12 @@ function DecisionTypeCell({ entry }: { entry: AuditEntry }) {
         className={
           retained
             ? "grid h-8 w-8 place-items-center rounded-full border border-green-100 bg-green-50 text-track"
-            : "grid h-8 w-8 place-items-center rounded-full border border-orange-100 bg-orange-50 text-attend"
+            : dismissed
+              ? "grid h-8 w-8 place-items-center rounded-full border border-stone-200 bg-stone-50 text-stone-600"
+              : "grid h-8 w-8 place-items-center rounded-full border border-orange-100 bg-orange-50 text-attend"
         }
       >
-        {retained ? <CheckCircle2 className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}
+        {retained ? <CheckCircle2 className="h-4 w-4" /> : dismissed ? <X className="h-4 w-4" /> : <UserRound className="h-4 w-4" />}
       </span>
       <span className="max-w-32 text-center leading-5">
         {retained ? (
@@ -408,6 +412,12 @@ function DecisionTypeCell({ entry }: { entry: AuditEntry }) {
             AI Recommendation
             <br />
             Retained
+          </>
+        ) : dismissed ? (
+          <>
+            Dismissed
+            <br />
+            Not Applicable
           </>
         ) : (
           "Human Override"
