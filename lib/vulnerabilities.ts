@@ -1,5 +1,6 @@
 import vulnerabilitiesData from "@/data/vulnerabilities.json";
 import type {
+  DecisionFactorName,
   DecisionPathStep,
   OlaTarget,
   Recommendation,
@@ -7,6 +8,7 @@ import type {
   ThreatActorActivity,
   Vulnerability
 } from "@/lib/types";
+import { DECISION_PATH_STAGE_LABELS } from "@/lib/spec-labels";
 
 export const vulnerabilities = vulnerabilitiesData as Vulnerability[];
 
@@ -237,6 +239,11 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
         ? "Medium"
         : "Low";
 
+  const specMeta = (label: DecisionFactorName) => {
+    const meta = DECISION_PATH_STAGE_LABELS[label];
+    return { specLabel: meta.specLabel, specSortOrder: meta.sortOrder };
+  };
+
   return [
     {
       label: "Threat Activity",
@@ -250,7 +257,8 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
           : vulnerability.threatActorActivity === "ACTIVE_EXPLOITATION"
             ? "Threat actors are modeled as actively leveraging exploitation, but not specifically against financial institutions."
             : "No known threat actor activity is modeled for this PoC record.",
-      tone: threatTone
+      tone: threatTone,
+      ...specMeta("Threat Activity")
     },
     {
       label: "Exposure",
@@ -260,7 +268,8 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
         vulnerability.internetFacing
           ? "Internet-facing exposure increases the probability that exploitation can reach enterprise assets."
           : "Internal-only exposure lowers urgency unless business or threat context raises the score.",
-      tone: vulnerability.internetFacing ? "ATTEND" : "TRACK"
+      tone: vulnerability.internetFacing ? "ATTEND" : "TRACK",
+      ...specMeta("Exposure")
     },
     {
       label: "Business Risk",
@@ -272,7 +281,8 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
           : businessRisk === "Medium"
             ? "Business impact is meaningful, but not the highest internal risk tier."
             : "Business impact is limited in the simulated enterprise context.",
-      tone: businessRisk === "High" ? "ACT" : businessRisk === "Medium" ? "ATTEND" : "TRACK"
+      tone: businessRisk === "High" ? "ACT" : businessRisk === "Medium" ? "ATTEND" : "TRACK",
+      ...specMeta("Business Risk")
     },
     {
       label: "DTCC Severity",
@@ -285,7 +295,8 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
           ? "ACT"
           : governance.severityBand === "High" || governance.severityBand === "Medium"
             ? "ATTEND"
-            : "TRACK"
+            : "TRACK",
+      ...specMeta("DTCC Severity")
     },
     {
       label: "OLA Target",
@@ -298,7 +309,8 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
           ? "ACT"
           : governance.olaTarget === "7 days" || governance.olaTarget === "30 days"
             ? "ATTEND"
-            : "TRACK"
+            : "TRACK",
+      ...specMeta("OLA Target")
     },
     {
       label: "Remediation Decision",
@@ -310,7 +322,8 @@ function buildDecisionPath(vulnerability: Vulnerability, recommendation: Recomme
           : recommendation === "ATTEND"
             ? "The issue should be scheduled under the OLA target without emergency remediation."
             : "The issue remains visible for tracking under the next standard review cycle.",
-      tone: recommendation
+      tone: recommendation,
+      ...specMeta("Remediation Decision")
     }
   ];
 }

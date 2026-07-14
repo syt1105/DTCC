@@ -14,6 +14,7 @@ import {
   vulnerabilities
 } from "@/lib/vulnerabilities";
 import type { Recommendation } from "@/lib/types";
+import { OLA_SUBTIER_LABELS } from "@/lib/spec-labels";
 
 export default function DashboardPage() {
   const summary = getSummaryCounts();
@@ -98,7 +99,10 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
                       <Badge tone={vulnerability.kev ? "red" : "slate"}>{vulnerability.kev ? "KEV" : "No KEV"}</Badge>
-                      <Badge tone={getGovernanceDecision(vulnerability).acceleratedRemediation ? "red" : "blue"}>
+                      <Badge
+                        title={OLA_SUBTIER_LABELS[getGovernanceDecision(vulnerability).olaTarget]}
+                        tone={getGovernanceDecision(vulnerability).acceleratedRemediation ? "red" : "blue"}
+                      >
                         {getGovernanceDecision(vulnerability).olaTarget}
                       </Badge>
                       <RecommendationBadge value={deriveRecommendation(vulnerability)} />

@@ -25,6 +25,7 @@ import { Card } from "@/components/ui/card";
 import type { AuditEntry } from "@/lib/types";
 import { readAuditEntries } from "@/lib/audit";
 import { getGovernanceDecision, getVulnerability } from "@/lib/vulnerabilities";
+import { OLA_SUBTIER_LABELS, RTO_TIER_LABELS } from "@/lib/spec-labels";
 
 export default function AuditPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
@@ -205,7 +206,12 @@ export default function AuditPage() {
               ariaLabel="Tier filter"
               value={tierFilter}
               options={["ALL", "Tier 1", "Tier 2", "Tier 3"]}
-              labels={{ ALL: "All Tiers" }}
+              labels={{
+                ALL: "All Tiers",
+                "Tier 1": `Tier 1 (${RTO_TIER_LABELS["Tier 1"]})`,
+                "Tier 2": `Tier 2 (${RTO_TIER_LABELS["Tier 2"]})`,
+                "Tier 3": `Tier 3 (${RTO_TIER_LABELS["Tier 3"]})`
+              }}
               onChange={(value) => setTierFilter(value as typeof tierFilter)}
             />
             <div className="flex h-12 items-center justify-center gap-3 rounded-[12px] border border-input bg-white px-4 text-sm font-semibold text-navy shadow-enterprise dark:bg-card dark:text-white">
@@ -250,8 +256,11 @@ export default function AuditPage() {
                         <div className="text-sm font-bold text-navy dark:text-white">
                           {context.severityScore} / {context.severityBand}
                         </div>
-                        <div className="mt-2 flex justify-center">
+                        <div className="mt-2 flex flex-col items-center gap-1">
                           <Badge tone={context.acceleratedRemediation ? "red" : "blue"}>{context.olaTarget}</Badge>
+                          <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                            {OLA_SUBTIER_LABELS[context.olaTarget]}
+                          </span>
                         </div>
                       </td>
                       <td className="px-4 py-6 text-center">

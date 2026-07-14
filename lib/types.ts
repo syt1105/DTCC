@@ -51,6 +51,8 @@ export type DecisionPathStep = {
   source: string;
   rationale: string;
   tone: Recommendation | "neutral";
+  specLabel: string;
+  specSortOrder: number;
 };
 
 export type ReasoningOutput = {
