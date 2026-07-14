@@ -11,6 +11,7 @@ import {
   getGovernanceDecision,
   threatActorActivityLabel
 } from "@/lib/vulnerabilities";
+import { OLA_SUBTIER_LABELS } from "@/lib/spec-labels";
 
 export function SummaryCard({
   label,
@@ -142,7 +143,14 @@ export function VulnerabilityTable({
                       </Badge>
                     </div>
                   </td>
-                  <td className="px-2 py-4 text-center font-semibold">{formatOlaTarget(governance.olaTarget)}</td>
+                  <td className="px-2 py-4 text-center">
+                    <div className="mx-auto flex w-fit flex-col items-center">
+                      <div className="font-semibold">{formatOlaTarget(governance.olaTarget)}</div>
+                      <div className="mt-0.5 whitespace-nowrap text-[9px] font-bold uppercase text-muted-foreground">
+                        {OLA_SUBTIER_LABELS[governance.olaTarget]}
+                      </div>
+                    </div>
+                  </td>
                   <td className="px-3 py-4 text-center">
                     <Badge className="justify-center whitespace-nowrap leading-4" tone={vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING" ? "red" : vulnerability.threatActorActivity === "ACTIVE_EXPLOITATION" ? "orange" : "slate"}>
                       {threatActorActivityLabel(vulnerability.threatActorActivity)}

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DecisionPathStep, ReasoningOutput, Recommendation, Vulnerability } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getGovernanceDecision, threatActorActivityLabel } from "@/lib/vulnerabilities";
+import { OLA_SUBTIER_LABELS } from "@/lib/spec-labels";
 
 export function SsvcReviewPanel({
   reasoning,
@@ -53,9 +54,11 @@ export function SsvcReviewPanel({
             <span className="text-xs text-muted-foreground">DTCC-style PoC policy</span>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {reasoning.decisionPath.map((step, index) => (
-              <PathStep index={index} key={`${step.label}-${step.value}`} step={step} />
-            ))}
+            {[...reasoning.decisionPath]
+              .sort((a, b) => a.specSortOrder - b.specSortOrder)
+              .map((step, index) => (
+                <PathStep index={index} key={`${step.label}-${step.value}`} step={step} />
+              ))}
           </div>
         </div>
 
@@ -78,7 +81,10 @@ export function SsvcReviewPanel({
               <SnapshotItem label="CISA KEV" value={vulnerability.kev ? "Listed" : "Not listed"} />
               <SnapshotItem label="Threat Activity" value={threatActorActivityLabel(vulnerability.threatActorActivity)} />
               <SnapshotItem label="DTCC Severity" value={`${governance.score} (${governance.severityBand})`} />
-              <SnapshotItem label="OLA Target" value={governance.olaTarget} />
+              <SnapshotItem
+                label="OLA Target"
+                value={`${governance.olaTarget} · ${OLA_SUBTIER_LABELS[governance.olaTarget]}`}
+              />
             </div>
           </div>
         </div>
@@ -136,7 +142,7 @@ function PathStep({
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[11px] font-bold uppercase text-slate-500">{step.label}</div>
+        <div className="text-[11px] font-bold uppercase text-slate-500">{step.specLabel}</div>
         <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-navy shadow-sm">
           {index + 1}
         </div>
