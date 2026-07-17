@@ -1,7 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDown, ArrowRight, ArrowUp, ChevronRight, Minus, Printer, Share2, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  CalendarDays,
+  ChevronRight,
+  Minus,
+  Printer,
+  Share2,
+  X
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { AppShell } from "@/components/shell";
@@ -12,8 +22,10 @@ import { readAuditEntries } from "@/lib/audit";
 import {
   buildPeriodReport,
   buildReportInsights,
+  formatDateInput,
   formatPeriod,
   getMostRecentCompletePeriod,
+  getPeriodContainingDate,
   getPreviousPeriod,
   type PeriodReport,
   type ReportCase,
@@ -29,10 +41,19 @@ const timeframeLabels: Record<ReportTimeframe, string> = {
   monthly: "Monthly"
 };
 
-export default function RemediationReportPage() {
+type Drilldown =
+  | { kind: "severity"; severity: SeverityBand }
+  | { kind: "reviewed" }
+  | { kind: "ola" }
+  | { kind: "discovered" }
+  | { kind: "overrides" }
+  | { kind: "dismissed" };
+
+export default function ReviewReportPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [timeframe, setTimeframe] = useState<ReportTimeframe>("weekly");
-  const [criticalCasesOpen, setCriticalCasesOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [drilldown, setDrilldown] = useState<Drilldown | null>(null);
   const [shared, setShared] = useState(false);
   const referenceDate = useMemo(() => new Date(), []);
 
@@ -43,10 +64,15 @@ export default function RemediationReportPage() {
     return () => window.removeEventListener("tva-audit-updated", load);
   }, []);
 
-  const period = useMemo(
+  const latestCompletePeriod = useMemo(
     () => getMostRecentCompletePeriod(timeframe, referenceDate),
     [referenceDate, timeframe]
   );
+  const period = useMemo(() => {
+    if (!selectedDate) return latestCompletePeriod;
+    const selectedPeriod = getPeriodContainingDate(timeframe, parseDateInput(selectedDate));
+    return selectedPeriod.end <= latestCompletePeriod.end ? selectedPeriod : latestCompletePeriod;
+  }, [latestCompletePeriod, selectedDate, timeframe]);
   const previousPeriod = useMemo(() => getPreviousPeriod(period, timeframe), [period, timeframe]);
   const report = useMemo(() => buildPeriodReport(vulnerabilities, entries, period), [entries, period]);
   const previousReport = useMemo(
@@ -59,7 +85,7 @@ export default function RemediationReportPage() {
   );
 
   async function shareReport() {
-    const text = `${timeframeLabels[timeframe]} Remediation Report (${formatPeriod(period)}): ${report.openCritical} open Critical, ${report.remediated} remediated, ${report.olaAdherence}% OLA adherence.`;
+    const text = `${timeframeLabels[timeframe]} Review Report (${formatPeriod(period)}): ${report.openCritical} open Critical, ${report.reviewed} reviewed, ${report.olaAdherence}% OLA adherence.`;
     try {
       await navigator.clipboard.writeText(text);
       setShared(true);
@@ -71,23 +97,24 @@ export default function RemediationReportPage() {
 
   function selectTimeframe(value: ReportTimeframe) {
     setTimeframe(value);
-    setCriticalCasesOpen(false);
+    setSelectedDate("");
+    setDrilldown(null);
   }
 
   return (
     <AppShell>
-      <CriticalCasesDialog
-        cases={report.openCriticalCases}
-        open={criticalCasesOpen}
+      <ReportDrilldownDialog
+        drilldown={drilldown}
         periodLabel={formatPeriod(period)}
-        onClose={() => setCriticalCasesOpen(false)}
+        report={report}
+        onClose={() => setDrilldown(null)}
       />
 
       <div className="space-y-6">
         <PageHeader
-          description="Prioritized remediation risk, delivery, and OLA performance for the most recent complete reporting period."
+          description="Prioritized case review workload, decisions, and OLA performance for the selected complete reporting period."
           eyebrow={`Executive Summary · ${formatPeriod(period)}`}
-          title={`${timeframeLabels[timeframe]} Remediation Report`}
+          title={`${timeframeLabels[timeframe]} Review Report`}
           actions={
             <>
               <Button variant="outline" onClick={() => window.print()}>
@@ -102,56 +129,83 @@ export default function RemediationReportPage() {
           }
         />
 
-        <div className="flex flex-col gap-3 rounded-[12px] border border-border bg-white p-4 shadow-enterprise sm:flex-row sm:items-center sm:justify-between dark:bg-card">
-          <div>
-            <div className="text-sm font-bold text-navy dark:text-white">Reporting timeframe</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Showing the most recent complete period and comparing it with the immediately preceding period.
-            </p>
+        <div className="rounded-[12px] border border-border bg-white p-4 shadow-enterprise dark:bg-card">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <div className="text-sm font-bold text-navy dark:text-white">Reporting timeframe</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Select a timeframe and any date within the completed week, fixed two-week period, or month.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="inline-flex w-fit rounded-full border border-border bg-ceramic p-1" aria-label="Reporting timeframe">
+                {(Object.keys(timeframeLabels) as ReportTimeframe[]).map((value) => (
+                  <button
+                    aria-pressed={timeframe === value}
+                    className={`focus-ring rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                      timeframe === value
+                        ? "bg-navy text-white shadow-sm"
+                        : "text-muted-foreground hover:bg-white hover:text-navy"
+                    }`}
+                    key={value}
+                    type="button"
+                    onClick={() => selectTimeframe(value)}
+                  >
+                    {timeframeLabels[value]}
+                  </button>
+                ))}
+              </div>
+              <label className="relative block">
+                <span className="sr-only">Choose report date</span>
+                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  className="focus-ring h-11 rounded-full border border-input bg-white pl-10 pr-4 text-sm font-semibold text-navy dark:bg-card dark:text-white"
+                  max={formatDateInput(latestCompletePeriod.end)}
+                  type="date"
+                  value={selectedDate || formatDateInput(latestCompletePeriod.end)}
+                  onChange={(event) => {
+                    setSelectedDate(event.target.value);
+                    setDrilldown(null);
+                  }}
+                />
+              </label>
+              {selectedDate ? (
+                <Button size="sm" variant="ghost" onClick={() => setSelectedDate("")}>
+                  Latest complete
+                </Button>
+              ) : null}
+            </div>
           </div>
-          <div className="inline-flex w-fit rounded-full border border-border bg-ceramic p-1" aria-label="Reporting timeframe">
-            {(Object.keys(timeframeLabels) as ReportTimeframe[]).map((value) => (
-              <button
-                aria-pressed={timeframe === value}
-                className={`focus-ring rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  timeframe === value
-                    ? "bg-navy text-white shadow-sm"
-                    : "text-muted-foreground hover:bg-white hover:text-navy"
-                }`}
-                key={value}
-                type="button"
-                onClick={() => selectTimeframe(value)}
-              >
-                {timeframeLabels[value]}
-              </button>
-            ))}
+          <div className="mt-3 rounded-[10px] border border-[#B9DED2] bg-greenLight/30 px-3 py-2 text-xs font-semibold text-starbucks">
+            Selected period: {formatPeriod(period)} · Compared with {formatPeriod(previousPeriod)}
           </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <Kpi
-            clickable
             delta={report.openCritical - previousReport.openCritical}
             deltaKind="risk"
             detail="unresolved at period end"
             label="Open Critical Cases"
             value={report.openCritical}
-            onClick={() => setCriticalCasesOpen(true)}
+            onClick={() => setDrilldown({ kind: "severity", severity: "Critical" })}
           />
           <Kpi
-            delta={report.remediated - previousReport.remediated}
+            delta={report.reviewed - previousReport.reviewed}
             deltaKind="performance"
-            detail="completed in this period"
-            label="Remediated"
-            value={report.remediated}
+            detail="completed review in this period"
+            label="Reviewed Cases"
+            value={report.reviewed}
+            onClick={() => setDrilldown({ kind: "reviewed" })}
           />
           <Kpi
             delta={report.olaAdherence - previousReport.olaAdherence}
             deltaKind="performance"
             detail={`${report.olaMet} of ${report.olaTotal} due cases met target`}
-            label="OLA Adherence"
+            label="Review OLA Adherence"
             suffix="%"
             value={report.olaAdherence}
+            onClick={() => setDrilldown({ kind: "ola" })}
           />
         </div>
 
@@ -161,12 +215,10 @@ export default function RemediationReportPage() {
               <div>
                 <h2 className="text-base font-bold text-navy dark:text-white">Period-over-Period Analysis</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Data-backed changes and case-level drivers for the selected timeframe.
+                  Data-backed changes and case-level drivers for the selected review period.
                 </p>
               </div>
-              <div className="text-xs font-semibold text-muted-foreground">
-                vs. {formatPeriod(previousPeriod)}
-              </div>
+              <div className="text-xs font-semibold text-muted-foreground">vs. {formatPeriod(previousPeriod)}</div>
             </div>
           </div>
           <div className="grid divide-y divide-border lg:grid-cols-3 lg:divide-x lg:divide-y-0">
@@ -179,8 +231,8 @@ export default function RemediationReportPage() {
         <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
           <Card className="p-5">
             <h2 className="text-base font-bold text-navy dark:text-white">Open cases by severity</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Point-in-time inventory at the reporting period end.</p>
-            <div className="mt-6 space-y-4">
+            <p className="mt-1 text-sm text-muted-foreground">Point-in-time review inventory at the reporting period end.</p>
+            <div className="mt-6 space-y-3">
               {(["Critical", "High", "Medium", "Low"] as SeverityBand[]).map((severity) => (
                 <SeverityBar
                   count={report.severityCounts[severity]}
@@ -188,32 +240,32 @@ export default function RemediationReportPage() {
                   label={severity}
                   max={report.maxSeverityCount}
                   tone={severity === "Critical" ? "red" : severity === "High" ? "orange" : severity === "Medium" ? "blue" : "green"}
-                  onClick={severity === "Critical" ? () => setCriticalCasesOpen(true) : undefined}
+                  onClick={() => setDrilldown({ kind: "severity", severity })}
                 />
               ))}
             </div>
-            <p className="mt-5 text-xs text-muted-foreground">Select Critical to inspect the underlying cases.</p>
+            <p className="mt-5 text-xs text-muted-foreground">Select any severity to inspect its underlying cases.</p>
           </Card>
 
           <Card className="p-5">
             <h2 className="text-base font-bold text-navy dark:text-white">Secondary activity</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Supporting operational signals for this period.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Supporting review signals for this period.</p>
             <div className="mt-5 space-y-3">
-              <SecondaryMetric label="New cases enriched" value={report.discovered} />
-              <SecondaryMetric label="Human overrides" value={report.overrides} />
-              <SecondaryMetric label="Dismissed as not applicable" value={report.dismissed} />
+              <SecondaryMetric label="New cases enriched" value={report.discovered} onClick={() => setDrilldown({ kind: "discovered" })} />
+              <SecondaryMetric label="Human overrides" value={report.overrides} onClick={() => setDrilldown({ kind: "overrides" })} />
+              <SecondaryMetric label="Dismissed as not applicable" value={report.dismissed} onClick={() => setDrilldown({ kind: "dismissed" })} />
             </div>
           </Card>
         </div>
 
         <Card className="p-5">
-          <h2 className="text-base font-bold text-navy dark:text-white">Notable case activity</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Cases discovered or remediated during this reporting period.</p>
+          <h2 className="text-base font-bold text-navy dark:text-white">Notable review activity</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Cases enriched or reviewed during this reporting period.</p>
           <div className="mt-4 divide-y divide-border">
             {report.activity.length ? (
               report.activity.map((item) => {
-                const remediatedThisPeriod =
-                  item.remediatedAt && item.remediatedAt >= period.start && item.remediatedAt <= period.end;
+                const reviewedThisPeriod =
+                  item.reviewedAt && item.reviewedAt >= period.start && item.reviewedAt <= period.end;
                 return (
                   <div className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between" key={item.id}>
                     <div>
@@ -221,25 +273,25 @@ export default function RemediationReportPage() {
                         {item.id} · {item.product}
                       </Link>
                       <div className="mt-1 text-sm text-muted-foreground">
-                        {remediatedThisPeriod
-                          ? `Remediated ${formatShortDate(item.remediatedAt!)}.`
-                          : `Enriched ${formatShortDate(item.discoveredAt)} and added to the active inventory.`}
+                        {reviewedThisPeriod
+                          ? `Reviewed ${formatShortDate(item.reviewedAt!)}.`
+                          : `Enriched ${formatShortDate(item.discoveredAt)} and added to the review inventory.`}
                       </div>
                     </div>
-                    <Badge tone={remediatedThisPeriod ? "green" : item.severity === "Critical" ? "red" : "blue"}>
-                      {remediatedThisPeriod ? "Remediated" : item.severity}
+                    <Badge tone={reviewedThisPeriod ? "green" : item.severity === "Critical" ? "red" : "blue"}>
+                      {reviewedThisPeriod ? "Reviewed" : item.severity}
                     </Badge>
                   </div>
                 );
               })
             ) : (
-              <div className="py-8 text-center text-sm text-muted-foreground">No case activity was recorded for this period.</div>
+              <div className="py-8 text-center text-sm text-muted-foreground">No review activity was recorded for this period.</div>
             )}
           </div>
         </Card>
 
         <p className="text-xs leading-5 text-muted-foreground">
-          Generated from mock PoC lifecycle history, public CVE / CISA KEV / FIRST EPSS fields, and simulated DTCC
+          Generated from mock PoC review history, public CVE / CISA KEV / FIRST EPSS fields, and simulated DTCC
           enterprise context. Causal statements are limited to case-level changes represented in the data.
         </p>
       </div>
@@ -254,7 +306,6 @@ function Kpi({
   detail,
   delta,
   deltaKind,
-  clickable = false,
   onClick
 }: {
   label: string;
@@ -263,23 +314,25 @@ function Kpi({
   detail: string;
   delta: number;
   deltaKind: "risk" | "performance";
-  clickable?: boolean;
-  onClick?: () => void;
+  onClick: () => void;
 }) {
   const positive = deltaKind === "risk" ? delta < 0 : delta > 0;
   const negative = deltaKind === "risk" ? delta > 0 : delta < 0;
   const deltaClass = positive ? "text-track" : negative ? "text-act" : "text-muted-foreground";
   const DeltaIcon = delta > 0 ? ArrowUp : delta < 0 ? ArrowDown : Minus;
-  const content = (
-    <>
+
+  return (
+    <button
+      className="focus-ring rounded-[12px] border border-border bg-card p-5 text-left shadow-enterprise transition-all hover:-translate-y-0.5 hover:border-greenAccent hover:shadow-lg"
+      type="button"
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-3xl font-bold text-navy dark:text-white">
-            {value}{suffix}
-          </div>
+          <div className="text-3xl font-bold text-navy dark:text-white">{value}{suffix}</div>
           <div className="mt-2 text-sm font-bold text-navy dark:text-white">{label}</div>
         </div>
-        {clickable ? <ChevronRight className="h-5 w-5 text-starbucks" /> : null}
+        <ChevronRight className="h-5 w-5 text-starbucks" />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold">
         <span className={`inline-flex items-center gap-1 ${deltaClass}`}>
@@ -288,22 +341,8 @@ function Kpi({
         </span>
         <span className="text-muted-foreground">vs previous period · {detail}</span>
       </div>
-    </>
+    </button>
   );
-
-  if (clickable) {
-    return (
-      <button
-        className="focus-ring rounded-[12px] border border-border bg-card p-5 text-left shadow-enterprise transition-all hover:-translate-y-0.5 hover:border-greenAccent hover:shadow-lg"
-        type="button"
-        onClick={onClick}
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return <Card className="p-5">{content}</Card>;
 }
 
 function Insight({ insight }: { insight: ReportInsight }) {
@@ -325,12 +364,19 @@ function Insight({ insight }: { insight: ReportInsight }) {
   );
 }
 
-function SecondaryMetric({ label, value }: { label: string; value: number }) {
+function SecondaryMetric({ label, value, onClick }: { label: string; value: number; onClick: () => void }) {
   return (
-    <div className="flex items-center justify-between rounded-[12px] border border-border bg-ceramic/60 px-4 py-3">
+    <button
+      className="focus-ring flex w-full items-center justify-between rounded-[12px] border border-border bg-ceramic/60 px-4 py-3 text-left transition-colors hover:border-greenAccent hover:bg-greenLight/35"
+      type="button"
+      onClick={onClick}
+    >
       <span className="text-sm font-semibold text-navy dark:text-white">{label}</span>
-      <Badge tone="blue">{value}</Badge>
-    </div>
+      <span className="flex items-center gap-2">
+        <Badge tone="blue">{value}</Badge>
+        <ChevronRight className="h-4 w-4 text-starbucks" />
+      </span>
+    </button>
   );
 }
 
@@ -345,58 +391,45 @@ function SeverityBar({
   label: string;
   max: number;
   tone: "red" | "orange" | "blue" | "green";
-  onClick?: () => void;
+  onClick: () => void;
 }) {
   const fill =
-    tone === "red"
-      ? "bg-act"
-      : tone === "orange"
-        ? "bg-attend"
-        : tone === "blue"
-          ? "bg-greenAccent"
-          : "bg-track";
-  const content = (
-    <>
+    tone === "red" ? "bg-act" : tone === "orange" ? "bg-attend" : tone === "blue" ? "bg-greenAccent" : "bg-track";
+
+  return (
+    <button
+      className="focus-ring grid w-full grid-cols-[84px_1fr_28px_16px] items-center gap-3 rounded-[8px] px-1 py-1.5 text-left hover:bg-greenLight/30"
+      type="button"
+      onClick={onClick}
+    >
       <div className="text-sm font-semibold text-navy dark:text-white">{label}</div>
       <div className="h-2.5 rounded-full bg-ceramic">
         <div className={`h-2.5 rounded-full ${fill}`} style={{ width: `${count ? Math.max(8, (count / max) * 100) : 0}%` }} />
       </div>
       <div className="text-right text-sm font-bold text-navy dark:text-white">{count}</div>
-      {onClick ? <ChevronRight className="h-4 w-4 text-starbucks" /> : <span />}
-    </>
+      <ChevronRight className="h-4 w-4 text-starbucks" />
+    </button>
   );
-
-  if (onClick) {
-    return (
-      <button
-        className="focus-ring grid w-full grid-cols-[84px_1fr_28px_16px] items-center gap-3 rounded-[8px] text-left hover:bg-greenLight/30"
-        type="button"
-        onClick={onClick}
-      >
-        {content}
-      </button>
-    );
-  }
-
-  return <div className="grid grid-cols-[84px_1fr_28px_16px] items-center gap-3">{content}</div>;
 }
 
-function CriticalCasesDialog({
-  cases,
-  open,
+function ReportDrilldownDialog({
+  drilldown,
+  report,
   periodLabel,
   onClose
 }: {
-  cases: ReportCase[];
-  open: boolean;
+  drilldown: Drilldown | null;
+  report: PeriodReport;
   periodLabel: string;
   onClose: () => void;
 }) {
-  if (!open) return null;
+  if (!drilldown) return null;
+
+  const content = getDrilldownContent(drilldown, report);
 
   return (
     <div
-      aria-labelledby="critical-cases-title"
+      aria-labelledby="report-drilldown-title"
       aria-modal="true"
       className="fixed inset-0 z-50 flex justify-end bg-navy/60 backdrop-blur-sm"
       role="dialog"
@@ -408,54 +441,108 @@ function CriticalCasesDialog({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-bold uppercase tracking-wide text-act">Critical exposure</div>
-            <h2 className="mt-1 text-xl font-bold text-navy dark:text-white" id="critical-cases-title">
-              Open Critical Cases
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">Unresolved as of {periodLabel}.</p>
+            <div className="text-xs font-bold uppercase tracking-wide text-starbucks">Review report detail</div>
+            <h2 className="mt-1 text-xl font-bold text-navy dark:text-white" id="report-drilldown-title">{content.title}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{content.subtitle} · {periodLabel}</p>
           </div>
-          <Button aria-label="Close Critical cases" size="icon" variant="ghost" onClick={onClose}>
+          <Button aria-label="Close report detail" size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="mt-6 space-y-4">
-          {cases.length ? (
-            cases.map((item) => (
-              <div className="rounded-[12px] border border-border p-4" key={item.id}>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <Link className="font-bold text-starbucks hover:underline" href={`/cves/${item.id}`}>
-                      {item.id}
-                    </Link>
-                    <p className="mt-1 text-sm font-semibold text-navy dark:text-white">{item.product}</p>
-                  </div>
-                  <Badge tone={item.overdue ? "red" : "orange"}>{item.overdue ? "OLA overdue" : "Within OLA"}</Badge>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <CaseFact label="DTCC Severity" value={`${item.score} / 100 · ${item.severity}`} />
-                  <CaseFact label="OLA Target" value={`${item.olaTarget} · due ${formatShortDate(item.dueAt)}`} />
-                  <CaseFact label="Exposure" value={item.internetFacing ? "Internet-facing" : "Internal"} />
-                  <CaseFact label="Threat Activity" value={item.threatActivity} />
-                </div>
-                <Link
-                  className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-starbucks hover:underline"
-                  href={`/cves/${item.id}`}
-                >
-                  View case details
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            ))
-          ) : (
+          {content.cases.map((item) => (
+            <ReportCaseCard context={drilldown.kind} item={item} key={item.id} />
+          ))}
+          {content.entries.map((entry) => (
+            <AuditEntryCard entry={entry} key={entry.id} />
+          ))}
+          {!content.cases.length && !content.entries.length ? (
             <div className="rounded-[12px] border border-green-100 bg-green-50 p-5 text-sm font-semibold text-green-700">
-              No Critical cases were open at the end of this reporting period.
+              No matching records were found for this reporting period.
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
   );
+}
+
+function ReportCaseCard({ item, context }: { item: ReportCase; context: Drilldown["kind"] }) {
+  const reviewedOnTime = item.reviewedAt && item.reviewedAt <= item.dueAt;
+  const badge =
+    context === "reviewed"
+      ? { label: "Reviewed", tone: "green" as const }
+      : context === "ola"
+        ? { label: reviewedOnTime ? "OLA met" : "OLA missed", tone: reviewedOnTime ? "green" as const : "red" as const }
+        : context === "discovered"
+          ? { label: item.severity, tone: severityTone(item.severity) }
+          : { label: item.overdue ? "OLA overdue" : "Within OLA", tone: item.overdue ? "red" as const : "blue" as const };
+
+  return (
+    <div className="rounded-[12px] border border-border p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link className="font-bold text-starbucks hover:underline" href={`/cves/${item.id}`}>{item.id}</Link>
+          <p className="mt-1 text-sm font-semibold text-navy dark:text-white">{item.product}</p>
+        </div>
+        <Badge tone={badge.tone}>{badge.label}</Badge>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <CaseFact label="DTCC Severity" value={`${item.score} / 100 · ${item.severity}`} />
+        <CaseFact label="Review OLA" value={`${item.olaTarget} · due ${formatShortDate(item.dueAt)}`} />
+        <CaseFact label="Exposure" value={item.internetFacing ? "Internet-facing" : "Internal"} />
+        <CaseFact label="Threat Activity" value={item.threatActivity} />
+      </div>
+      <Link className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-starbucks hover:underline" href={`/cves/${item.id}`}>
+        View case details
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
+}
+
+function AuditEntryCard({ entry }: { entry: AuditEntry }) {
+  return (
+    <div className="rounded-[12px] border border-border p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link className="font-bold text-starbucks hover:underline" href={`/cves/${entry.cve}`}>{entry.cve}</Link>
+          <p className="mt-1 text-sm text-muted-foreground">{entry.analyst} · {formatShortDate(new Date(entry.timestamp))}</p>
+        </div>
+        <Badge tone={entry.status === "Dismissed" ? "slate" : "orange"}>{entry.status}</Badge>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <CaseFact label="Decision" value={`${entry.recommendation} → ${entry.finalDecision}`} />
+        <CaseFact label="Reason" value={entry.reason || "No reason recorded"} />
+      </div>
+      {entry.comments ? <p className="mt-3 text-sm leading-6 text-muted-foreground">{entry.comments}</p> : null}
+    </div>
+  );
+}
+
+function getDrilldownContent(drilldown: Drilldown, report: PeriodReport) {
+  if (drilldown.kind === "severity") {
+    return {
+      title: `Open ${drilldown.severity} Cases`,
+      subtitle: "Unresolved at the reporting period end",
+      cases: report.openCases.filter((item) => item.severity === drilldown.severity),
+      entries: [] as AuditEntry[]
+    };
+  }
+  if (drilldown.kind === "reviewed") {
+    return { title: "Reviewed Cases", subtitle: "Completed review in this period", cases: report.reviewedCases, entries: [] as AuditEntry[] };
+  }
+  if (drilldown.kind === "ola") {
+    return { title: "Review OLA Cases", subtitle: "Cases with an OLA due in this period", cases: report.dueCases, entries: [] as AuditEntry[] };
+  }
+  if (drilldown.kind === "discovered") {
+    return { title: "New Cases Enriched", subtitle: "Added to the review inventory in this period", cases: report.discoveredCases, entries: [] as AuditEntry[] };
+  }
+  if (drilldown.kind === "overrides") {
+    return { title: "Human Overrides", subtitle: "Analyst overrides recorded in this period", cases: [] as ReportCase[], entries: report.overrideEntries };
+  }
+  return { title: "Dismissed as Not Applicable", subtitle: "Dismissals recorded in this period", cases: [] as ReportCase[], entries: report.dismissedEntries };
 }
 
 function CaseFact({ label, value }: { label: string; value: string }) {
@@ -465,6 +552,18 @@ function CaseFact({ label, value }: { label: string; value: string }) {
       <div className="mt-1 text-sm font-semibold text-navy dark:text-white">{value}</div>
     </div>
   );
+}
+
+function severityTone(severity: SeverityBand) {
+  if (severity === "Critical") return "red" as const;
+  if (severity === "High") return "orange" as const;
+  if (severity === "Medium") return "blue" as const;
+  return "green" as const;
+}
+
+function parseDateInput(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function formatShortDate(date: Date) {

@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  CalendarDays,
   ClipboardPaste,
   Filter,
-  RefreshCcw,
   Search,
   Upload,
   X
@@ -33,7 +31,6 @@ import { writeAuditEntry } from "@/lib/audit";
 import { readRefreshFeed, REFRESH_FEED_UPDATED_EVENT } from "@/lib/refresh-feed";
 
 const filterOptions: Array<Recommendation | "ALL"> = ["ALL", "ACT", "ATTEND", "TRACK"];
-const tuesdayReleaseIds = batchLookupCatalog.map((vulnerability) => vulnerability.id);
 const dismissReasons = [
   "Component not deployed in environment",
   "Version not affected",
@@ -119,17 +116,6 @@ export default function QueuePage() {
     setDismissedIds(nextDismissed);
   }
 
-  function autoImportTuesdayRelease() {
-    const before = new Set([...vulnerabilities.map((vulnerability) => vulnerability.id), ...importedIds]);
-    const newIds = tuesdayReleaseIds.filter((id) => !before.has(id) || dismissedIds.includes(id));
-    addImported(tuesdayReleaseIds);
-    showToast(
-      newIds.length > 0
-        ? `Tuesday release imported: ${newIds.length} CVEs added or reinstated.`
-        : "Tuesday release is already present in the queue."
-    );
-  }
-
   function openDismiss(vulnerability: Vulnerability) {
     setDismissTarget(vulnerability);
   }
@@ -174,7 +160,7 @@ export default function QueuePage() {
   return (
     <AppShell>
       <Toast message={toast} visible={Boolean(toast)} />
-      <BatchLookupDialog
+      <ManualImportDialog
         dismissedIds={dismissedIds}
         open={batchOpen}
         queueIds={queue.map((vulnerability) => vulnerability.id)}
@@ -197,16 +183,10 @@ export default function QueuePage() {
           eyebrow="Threat & Vulnerability Assessment"
           title="CVE Queue Overview"
           actions={
-            <>
             <Button variant="outline" onClick={() => setBatchOpen(true)}>
               <ClipboardPaste className="h-4 w-4" />
-              Batch Lookup
+              Manual Import
             </Button>
-            <Button onClick={autoImportTuesdayRelease}>
-              <CalendarDays className="h-4 w-4" />
-              Auto Import Tuesday
-            </Button>
-            </>
           }
         />
 
@@ -282,7 +262,7 @@ export default function QueuePage() {
   );
 }
 
-function BatchLookupDialog({
+function ManualImportDialog({
   dismissedIds,
   open,
   queueIds,
@@ -295,10 +275,10 @@ function BatchLookupDialog({
   onClose: () => void;
   onImport: (ids: string[]) => void;
 }) {
-  const [value, setValue] = useState("CVE-2024-28995, CVE-2024-40766\nCVE-2025-0108\nCVE-2024-9999");
+  const [value, setValue] = useState("");
 
   useEffect(() => {
-    if (open) setValue("CVE-2024-28995, CVE-2024-40766\nCVE-2025-0108\nCVE-2024-9999");
+    if (open) setValue("");
   }, [open]);
 
   const ids = useMemo(() => parseCveIds(value), [value]);
@@ -319,30 +299,25 @@ function BatchLookupDialog({
       >
         <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div>
-            <h2 className="text-xl font-bold text-navy">Batch Vulnerability Lookup</h2>
+            <h2 className="text-xl font-bold text-navy">Manual CVE Import</h2>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-              Paste CVE identifiers or use the Tuesday release shortcut. The PoC enriches matches from the local mock
-              catalog before adding them to the review queue.
+              Paste CVE identifiers to preview matches from the local PoC catalog, then choose which records to add to
+              the review queue.
             </p>
           </div>
-          <Button aria-label="Close batch lookup" size="icon" variant="ghost" onClick={onClose}>
+          <Button aria-label="Close manual import" size="icon" variant="ghost" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         <div className="px-6 py-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <label className="text-sm font-bold text-navy" htmlFor="batch-cves">
-              CVE identifiers
-            </label>
-            <Button size="sm" variant="outline" onClick={() => setValue(tuesdayReleaseIds.join("\n"))}>
-              <RefreshCcw className="h-4 w-4" />
-              Use Tuesday Release
-            </Button>
-          </div>
+          <label className="text-sm font-bold text-navy" htmlFor="batch-cves">
+            CVE identifiers
+          </label>
           <textarea
             className="focus-ring mt-2 min-h-32 w-full resize-y rounded-[12px] border border-input bg-white px-4 py-3 text-sm text-navy placeholder:text-muted-foreground"
             id="batch-cves"
+            placeholder={"CVE-2024-28995\nCVE-2024-40766\nCVE-2025-0108"}
             value={value}
             onChange={(event) => setValue(event.target.value)}
           />

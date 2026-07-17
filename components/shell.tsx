@@ -24,7 +24,7 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/", label: "CVE Queue", icon: ClipboardList },
   { href: "/audit", label: "Audit Log", icon: History },
-  { href: "/report", label: "Remediation Report", icon: LineChart }
+  { href: "/report", label: "Review Report", icon: LineChart }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <div className="hidden grow lg:block" />
 
-          <div className="hidden space-y-4 lg:block">
+          <div className="hidden space-y-4 pt-2 lg:block">
             <Link
               className="flex w-full items-center gap-3 rounded-full px-3 py-2 text-left text-sm text-greenLight/80 hover:bg-white/10 hover:text-white"
               href="/settings"

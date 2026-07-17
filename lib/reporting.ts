@@ -12,7 +12,7 @@ type ReportCaseHistory = {
   cve: string;
   discoveredAt: string;
   dueAt: string;
-  remediatedAt?: string;
+  reviewedAt?: string;
 };
 
 export type ReportCase = {
@@ -20,13 +20,13 @@ export type ReportCase = {
   product: string;
   severity: SeverityBand;
   score: number;
-  status: "Open" | "Remediated";
+  status: "Open" | "Reviewed";
   olaTarget: string;
   internetFacing: boolean;
   threatActivity: string;
   dueAt: Date;
   discoveredAt: Date;
-  remediatedAt: Date | null;
+  reviewedAt: Date | null;
   overdue: boolean;
 };
 
@@ -39,38 +39,43 @@ export type ReportInsight = {
 export type PeriodReport = {
   openCritical: number;
   openCriticalCases: ReportCase[];
-  remediated: number;
-  remediatedCases: ReportCase[];
+  openCases: ReportCase[];
+  reviewed: number;
+  reviewedCases: ReportCase[];
   olaAdherence: number;
   olaMet: number;
   olaTotal: number;
+  dueCases: ReportCase[];
   missedOlaCases: ReportCase[];
   severityCounts: Record<SeverityBand, number>;
   maxSeverityCount: number;
   discovered: number;
+  discoveredCases: ReportCase[];
   overrides: number;
+  overrideEntries: AuditEntry[];
   dismissed: number;
+  dismissedEntries: AuditEntry[];
   activity: ReportCase[];
 };
 
 // Mock point-in-time history for the PoC. These dates make period comparisons
 // reproducible while the app is not connected to a scanner or ticketing system.
 const reportCaseHistory: ReportCaseHistory[] = [
-  { cve: "CVE-2024-3400", discoveredAt: "2026-05-04T12:00:00.000Z", dueAt: "2026-05-05T12:00:00.000Z", remediatedAt: "2026-06-20T12:00:00.000Z" },
-  { cve: "CVE-2024-21762", discoveredAt: "2026-06-29T12:00:00.000Z", dueAt: "2026-07-12T12:00:00.000Z", remediatedAt: "2026-07-11T12:00:00.000Z" },
-  { cve: "CVE-2024-38812", discoveredAt: "2026-05-22T12:00:00.000Z", dueAt: "2026-06-21T12:00:00.000Z", remediatedAt: "2026-06-18T12:00:00.000Z" },
-  { cve: "CVE-2024-47575", discoveredAt: "2026-06-03T12:00:00.000Z", dueAt: "2026-07-03T12:00:00.000Z", remediatedAt: "2026-07-02T12:00:00.000Z" },
+  { cve: "CVE-2024-3400", discoveredAt: "2026-05-04T12:00:00.000Z", dueAt: "2026-05-05T12:00:00.000Z", reviewedAt: "2026-06-20T12:00:00.000Z" },
+  { cve: "CVE-2024-21762", discoveredAt: "2026-06-29T12:00:00.000Z", dueAt: "2026-07-12T12:00:00.000Z", reviewedAt: "2026-07-11T12:00:00.000Z" },
+  { cve: "CVE-2024-38812", discoveredAt: "2026-05-22T12:00:00.000Z", dueAt: "2026-06-21T12:00:00.000Z", reviewedAt: "2026-06-18T12:00:00.000Z" },
+  { cve: "CVE-2024-47575", discoveredAt: "2026-06-03T12:00:00.000Z", dueAt: "2026-07-03T12:00:00.000Z", reviewedAt: "2026-07-02T12:00:00.000Z" },
   { cve: "CVE-2024-29824", discoveredAt: "2026-06-18T12:00:00.000Z", dueAt: "2026-06-29T12:00:00.000Z" },
-  { cve: "CVE-2024-20353", discoveredAt: "2026-05-12T12:00:00.000Z", dueAt: "2026-06-11T12:00:00.000Z", remediatedAt: "2026-06-10T12:00:00.000Z" },
-  { cve: "CVE-2023-34362", discoveredAt: "2026-05-10T12:00:00.000Z", dueAt: "2026-05-11T12:00:00.000Z", remediatedAt: "2026-06-05T12:00:00.000Z" },
-  { cve: "CVE-2024-3094", discoveredAt: "2026-05-18T12:00:00.000Z", dueAt: "2026-06-15T12:00:00.000Z", remediatedAt: "2026-06-14T12:00:00.000Z" },
-  { cve: "CVE-2023-4966", discoveredAt: "2026-05-26T12:00:00.000Z", dueAt: "2026-07-01T12:00:00.000Z", remediatedAt: "2026-07-09T12:00:00.000Z" },
-  { cve: "CVE-2024-5806", discoveredAt: "2026-06-04T12:00:00.000Z", dueAt: "2026-07-05T12:00:00.000Z", remediatedAt: "2026-07-04T12:00:00.000Z" },
-  { cve: "CVE-2024-6387", discoveredAt: "2026-06-08T12:00:00.000Z", dueAt: "2026-07-10T12:00:00.000Z", remediatedAt: "2026-07-07T12:00:00.000Z" },
-  { cve: "CVE-2024-1086", discoveredAt: "2026-05-07T12:00:00.000Z", dueAt: "2026-06-30T12:00:00.000Z", remediatedAt: "2026-06-28T12:00:00.000Z" },
+  { cve: "CVE-2024-20353", discoveredAt: "2026-05-12T12:00:00.000Z", dueAt: "2026-06-11T12:00:00.000Z", reviewedAt: "2026-06-10T12:00:00.000Z" },
+  { cve: "CVE-2023-34362", discoveredAt: "2026-05-10T12:00:00.000Z", dueAt: "2026-05-11T12:00:00.000Z", reviewedAt: "2026-06-05T12:00:00.000Z" },
+  { cve: "CVE-2024-3094", discoveredAt: "2026-05-18T12:00:00.000Z", dueAt: "2026-06-15T12:00:00.000Z", reviewedAt: "2026-06-14T12:00:00.000Z" },
+  { cve: "CVE-2023-4966", discoveredAt: "2026-05-26T12:00:00.000Z", dueAt: "2026-07-01T12:00:00.000Z", reviewedAt: "2026-07-09T12:00:00.000Z" },
+  { cve: "CVE-2024-5806", discoveredAt: "2026-06-04T12:00:00.000Z", dueAt: "2026-07-05T12:00:00.000Z", reviewedAt: "2026-07-04T12:00:00.000Z" },
+  { cve: "CVE-2024-6387", discoveredAt: "2026-06-08T12:00:00.000Z", dueAt: "2026-07-10T12:00:00.000Z", reviewedAt: "2026-07-07T12:00:00.000Z" },
+  { cve: "CVE-2024-1086", discoveredAt: "2026-05-07T12:00:00.000Z", dueAt: "2026-06-30T12:00:00.000Z", reviewedAt: "2026-06-28T12:00:00.000Z" },
   { cve: "CVE-2024-24919", discoveredAt: "2026-07-08T12:00:00.000Z", dueAt: "2026-07-11T12:00:00.000Z" },
-  { cve: "CVE-2024-27198", discoveredAt: "2026-05-14T12:00:00.000Z", dueAt: "2026-05-21T12:00:00.000Z", remediatedAt: "2026-05-20T12:00:00.000Z" },
-  { cve: "CVE-2024-4577", discoveredAt: "2026-05-28T12:00:00.000Z", dueAt: "2026-06-27T12:00:00.000Z", remediatedAt: "2026-06-25T12:00:00.000Z" }
+  { cve: "CVE-2024-27198", discoveredAt: "2026-05-14T12:00:00.000Z", dueAt: "2026-05-21T12:00:00.000Z", reviewedAt: "2026-05-20T12:00:00.000Z" },
+  { cve: "CVE-2024-4577", discoveredAt: "2026-05-28T12:00:00.000Z", dueAt: "2026-06-27T12:00:00.000Z", reviewedAt: "2026-06-25T12:00:00.000Z" }
 ];
 
 const timeframeDays: Record<Exclude<ReportTimeframe, "monthly">, number> = {
@@ -91,11 +96,20 @@ export function getMostRecentCompletePeriod(timeframe: ReportTimeframe, now = ne
     return { start, end: endOfDay(addDays(start, 6)) };
   }
 
-  const anchorMonday = new Date(1969, 11, 29);
-  const weeksSinceAnchor = Math.floor((calendarDayNumber(currentMonday) - calendarDayNumber(anchorMonday)) / 7);
-  const currentPairStart = addDays(anchorMonday, Math.floor(weeksSinceAnchor / 2) * 14);
+  const currentPairStart = getBiweeklyStart(currentMonday);
   const start = addDays(currentPairStart, -14);
   return { start, end: endOfDay(addDays(start, 13)) };
+}
+
+export function getPeriodContainingDate(timeframe: ReportTimeframe, date: Date): ReportPeriod {
+  if (timeframe === "monthly") {
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    return { start, end: endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0)) };
+  }
+
+  const start = timeframe === "weekly" ? startOfWeek(date) : getBiweeklyStart(startOfWeek(date));
+  const days = timeframeDays[timeframe];
+  return { start, end: endOfDay(addDays(start, days - 1)) };
 }
 
 export function getPreviousPeriod(period: ReportPeriod, timeframe: ReportTimeframe): ReportPeriod {
@@ -115,6 +129,13 @@ export function formatPeriod(period: ReportPeriod) {
   return `${formatter.format(period.start)} – ${formatter.format(period.end)}`;
 }
 
+export function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function buildPeriodReport(
   vulnerabilities: Vulnerability[],
   entries: AuditEntry[],
@@ -131,20 +152,20 @@ export function buildPeriodReport(
 
   const visibleCases = cases.filter((item) => item.discoveredAt <= period.end);
   const activeCases = visibleCases.filter(
-    (item) => !item.remediatedAt || item.remediatedAt > period.end
+    (item) => !item.reviewedAt || item.reviewedAt > period.end
   );
   const openCriticalCases = activeCases
     .filter((item) => item.severity === "Critical")
     .sort((a, b) => b.score - a.score || a.dueAt.getTime() - b.dueAt.getTime());
-  const remediatedCases = visibleCases
-    .filter((item) => item.remediatedAt && isWithin(item.remediatedAt, period))
-    .sort((a, b) => (b.remediatedAt?.getTime() ?? 0) - (a.remediatedAt?.getTime() ?? 0));
+  const reviewedCases = visibleCases
+    .filter((item) => item.reviewedAt && isWithin(item.reviewedAt, period))
+    .sort((a, b) => (b.reviewedAt?.getTime() ?? 0) - (a.reviewedAt?.getTime() ?? 0));
   const dueCases = visibleCases.filter((item) => isWithin(item.dueAt, period));
   const olaMet = dueCases.filter(
-    (item) => item.remediatedAt && item.remediatedAt <= item.dueAt
+    (item) => item.reviewedAt && item.reviewedAt <= item.dueAt
   ).length;
   const missedOlaCases = dueCases.filter(
-    (item) => !item.remediatedAt || item.remediatedAt > item.dueAt
+    (item) => !item.reviewedAt || item.reviewedAt > item.dueAt
   );
   const severityCounts = activeCases.reduce(
     (counts, item) => {
@@ -155,24 +176,31 @@ export function buildPeriodReport(
   );
   const periodEntries = entries.filter((entry) => isWithin(new Date(entry.timestamp), period));
   const discoveredCases = visibleCases.filter((item) => isWithin(item.discoveredAt, period));
-  const activity = [...discoveredCases, ...remediatedCases]
+  const overrideEntries = periodEntries.filter((entry) => entry.decisionType === "Human Override");
+  const dismissedEntries = periodEntries.filter((entry) => entry.status === "Dismissed");
+  const activity = [...discoveredCases, ...reviewedCases]
     .filter((item, index, all) => all.findIndex((candidate) => candidate.id === item.id) === index)
     .slice(0, 6);
 
   return {
     openCritical: openCriticalCases.length,
     openCriticalCases,
-    remediated: remediatedCases.length,
-    remediatedCases,
+    openCases: activeCases,
+    reviewed: reviewedCases.length,
+    reviewedCases,
     olaAdherence: dueCases.length ? Math.round((olaMet / dueCases.length) * 100) : 100,
     olaMet,
     olaTotal: dueCases.length,
+    dueCases,
     missedOlaCases,
     severityCounts,
     maxSeverityCount: Math.max(...Object.values(severityCounts), 1),
     discovered: discoveredCases.length,
-    overrides: periodEntries.filter((entry) => entry.decisionType === "Human Override").length,
-    dismissed: periodEntries.filter((entry) => entry.status === "Dismissed").length,
+    discoveredCases,
+    overrides: overrideEntries.length,
+    overrideEntries,
+    dismissed: dismissedEntries.length,
+    dismissedEntries,
     activity
   };
 }
@@ -192,13 +220,13 @@ export function buildReportInsights(current: PeriodReport, previous: PeriodRepor
           ? `${pluralize(Math.abs(criticalDelta), "fewer Critical case")} remained open. ${noLongerOpen.length ? `${joinCaseIds(noLongerOpen)} left the open population.` : ""}`
           : "The open Critical population was stable with no case-level change.";
 
-  const remediationDelta = current.remediated - previous.remediated;
-  const remediationDetail =
-    remediationDelta > 0
-      ? `Closures increased by ${remediationDelta}. ${joinCaseIds(current.remediatedCases.slice(0, 3))} were the main completed cases.`
-      : remediationDelta < 0
-        ? `Closures decreased by ${Math.abs(remediationDelta)} because fewer cases reached completed status in this period.`
-        : `Closure volume was unchanged at ${current.remediated}; ${joinCaseIds(current.remediatedCases.slice(0, 3)) || "no cases"} completed in the period.`;
+  const reviewDelta = current.reviewed - previous.reviewed;
+  const reviewDetail =
+    reviewDelta > 0
+      ? `Completed reviews increased by ${reviewDelta}. ${joinCaseIds(current.reviewedCases.slice(0, 3))} were the main reviewed cases.`
+      : reviewDelta < 0
+        ? `Completed reviews decreased by ${Math.abs(reviewDelta)} because fewer cases reached reviewed status in this period.`
+        : `Review volume was unchanged at ${current.reviewed}; ${joinCaseIds(current.reviewedCases.slice(0, 3)) || "no cases"} completed review in the period.`;
 
   const olaDelta = current.olaAdherence - previous.olaAdherence;
   const olaDetail =
@@ -215,9 +243,9 @@ export function buildReportInsights(current: PeriodReport, previous: PeriodRepor
       tone: criticalDelta > 0 ? "negative" : criticalDelta < 0 ? "positive" : "neutral"
     },
     {
-      title: "Remediation throughput",
-      detail: remediationDetail,
-      tone: remediationDelta > 0 ? "positive" : remediationDelta < 0 ? "negative" : "neutral"
+      title: "Review throughput",
+      detail: reviewDetail,
+      tone: reviewDelta > 0 ? "positive" : reviewDelta < 0 ? "negative" : "neutral"
     },
     {
       title: "OLA performance",
@@ -229,14 +257,14 @@ export function buildReportInsights(current: PeriodReport, previous: PeriodRepor
 
 function toReportCase(history: ReportCaseHistory, vulnerability: Vulnerability, periodEnd: Date): ReportCase {
   const governance = getGovernanceDecision(vulnerability);
-  const remediatedAt = history.remediatedAt ? new Date(history.remediatedAt) : null;
+  const reviewedAt = history.reviewedAt ? new Date(history.reviewedAt) : null;
   const dueAt = new Date(history.dueAt);
   return {
     id: vulnerability.id,
     product: vulnerability.product,
     severity: governance.severityBand,
     score: governance.score,
-    status: remediatedAt && remediatedAt <= periodEnd ? "Remediated" : "Open",
+    status: reviewedAt && reviewedAt <= periodEnd ? "Reviewed" : "Open",
     olaTarget: governance.olaTarget,
     internetFacing: vulnerability.internetFacing,
     threatActivity:
@@ -247,8 +275,8 @@ function toReportCase(history: ReportCaseHistory, vulnerability: Vulnerability, 
           : "No known activity",
     discoveredAt: new Date(history.discoveredAt),
     dueAt,
-    remediatedAt,
-    overdue: dueAt <= periodEnd && (!remediatedAt || remediatedAt > dueAt)
+    reviewedAt,
+    overdue: dueAt <= periodEnd && (!reviewedAt || reviewedAt > dueAt)
   };
 }
 
@@ -256,6 +284,12 @@ function startOfWeek(date: Date) {
   const result = startOfDay(date);
   const day = result.getDay();
   return addDays(result, -(day === 0 ? 6 : day - 1));
+}
+
+function getBiweeklyStart(monday: Date) {
+  const anchorMonday = new Date(1969, 11, 29);
+  const weeksSinceAnchor = Math.floor((calendarDayNumber(monday) - calendarDayNumber(anchorMonday)) / 7);
+  return addDays(anchorMonday, Math.floor(weeksSinceAnchor / 2) * 14);
 }
 
 function startOfDay(date: Date) {
