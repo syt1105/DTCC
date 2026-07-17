@@ -14,20 +14,54 @@ import {
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  readRefreshFeed,
+  REFRESH_FEED_UPDATED_EVENT,
+  refreshDemoFeed
+} from "@/lib/refresh-feed";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/", label: "CVE Queue", icon: ClipboardList },
   { href: "/audit", label: "Audit Log", icon: History },
-  { href: "/report", label: "Weekly Report", icon: LineChart }
+  { href: "/report", label: "Remediation Report", icon: LineChart }
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [dark, setDark] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
   }, [dark]);
+
+  useEffect(() => {
+    const load = () => setLastUpdated(readRefreshFeed().lastUpdated);
+    load();
+    window.addEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+    return () => window.removeEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+  }, []);
+
+  function refreshFeed() {
+    if (refreshing) return;
+    setRefreshing(true);
+    setRefreshMessage("");
+
+    window.setTimeout(() => {
+      try {
+        const result = refreshDemoFeed();
+        setLastUpdated(result.state.lastUpdated);
+        setRefreshMessage(`${result.added} new CVEs added`);
+        window.setTimeout(() => setRefreshMessage(""), 2800);
+      } catch {
+        setRefreshMessage("Refresh failed");
+      } finally {
+        setRefreshing(false);
+      }
+    }, 350);
+  }
 
   return (
     <div className="min-h-screen lg:flex">
@@ -59,13 +93,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Settings className="h-4 w-4" />
               Settings
             </Link>
-            <div className="flex items-end justify-between border-t border-white/10 pt-4 text-xs text-greenLight/75">
+            <button
+              aria-label="Refresh vulnerability feed and add 10 new CVEs"
+              className="focus-ring flex w-full items-end justify-between rounded-[10px] border-t border-white/10 px-2 pt-4 text-left text-xs text-greenLight/75 transition-colors hover:bg-white/10 hover:text-white"
+              disabled={refreshing}
+              type="button"
+              onClick={refreshFeed}
+            >
               <div>
                 <div>Last updated</div>
-                <div className="mt-1 text-white">Jun 30, 2026 10:24 AM</div>
+                <div className="mt-1 text-white">{formatRefreshTime(lastUpdated)}</div>
+                <div aria-live="polite" className="mt-1 min-h-4 text-greenLight">
+                  {refreshing ? "Refreshing…" : refreshMessage}
+                </div>
               </div>
-              <RefreshCcw className="h-4 w-4" />
-            </div>
+              <RefreshCcw className={`mb-4 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
           </div>
 
           <Button
@@ -101,6 +144,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Button>
     </div>
   );
+}
+
+function formatRefreshTime(timestamp: string | null) {
+  if (!timestamp) return "Not refreshed yet";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(timestamp));
 }
 
 function NavLink({

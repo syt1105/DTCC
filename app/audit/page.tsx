@@ -22,25 +22,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge, RecommendationBadge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import type { AuditEntry } from "@/lib/types";
+import type { AuditEntry, RtoTier, Vulnerability } from "@/lib/types";
 import { readAuditEntries } from "@/lib/audit";
 import { getGovernanceDecision, getVulnerability } from "@/lib/vulnerabilities";
+import { readRefreshFeed, REFRESH_FEED_UPDATED_EVENT } from "@/lib/refresh-feed";
 
 export default function AuditPage() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [refreshedVulnerabilities, setRefreshedVulnerabilities] = useState<Vulnerability[]>([]);
   const [exported, setExported] = useState(false);
   const [exportError, setExportError] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
   const [query, setQuery] = useState("");
   const [decisionTypeFilter, setDecisionTypeFilter] = useState<"ALL" | NonNullable<AuditEntry["decisionType"]>>("ALL");
-  const [tierFilter, setTierFilter] = useState<"ALL" | "Tier 1" | "Tier 2" | "Tier 3">("ALL");
+  const [tierFilter, setTierFilter] = useState<"ALL" | RtoTier>("ALL");
 
   useEffect(() => {
-    const load = () => setEntries(readAuditEntries());
+    const load = () => {
+      setEntries(readAuditEntries());
+      setRefreshedVulnerabilities(readRefreshFeed().vulnerabilities);
+    };
     load();
     window.addEventListener("tva-audit-updated", load);
-    return () => window.removeEventListener("tva-audit-updated", load);
+    window.addEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+    return () => {
+      window.removeEventListener("tva-audit-updated", load);
+      window.removeEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+    };
   }, []);
+
+  const refreshedById = useMemo(
+    () => new Map(refreshedVulnerabilities.map((item) => [item.id, item])),
+    [refreshedVulnerabilities]
+  );
+  const lookupVulnerability = (id: string) => refreshedById.get(id) ?? getVulnerability(id);
 
   const summary = useMemo(() => {
     const overridden = entries.filter((entry) => entry.override).length;
@@ -70,21 +85,21 @@ export default function AuditPage() {
         context.severityBand.toLowerCase().includes(normalized) ||
         context.olaTarget.toLowerCase().includes(normalized);
 
-      const vulnerability = getVulnerability(entry.cve);
+      const vulnerability = lookupVulnerability(entry.cve);
       const decisionType = entry.decisionType ?? (entry.override ? "Human Override" : "AI Recommendation Retained");
       const matchesDecisionType = decisionTypeFilter === "ALL" || decisionType === decisionTypeFilter;
       const matchesTier = tierFilter === "ALL" || vulnerability?.tier === tierFilter;
 
       return matchesQuery && matchesDecisionType && matchesTier;
     });
-  }, [decisionTypeFilter, entries, query, tierFilter]);
+  }, [decisionTypeFilter, entries, query, refreshedById, tierFilter]);
 
   async function exportLog() {
     const payload = JSON.stringify(
       filteredEntries.map((entry) => ({
         ...entry,
         context: getAuditContext(entry),
-        vulnerability: getVulnerability(entry.cve)?.product ?? "Unknown product"
+        vulnerability: lookupVulnerability(entry.cve)?.product ?? "Unknown product"
       })),
       null,
       2
@@ -204,7 +219,7 @@ export default function AuditPage() {
             <FilterSelect
               ariaLabel="Tier filter"
               value={tierFilter}
-              options={["ALL", "Tier 1", "Tier 2", "Tier 3"]}
+              options={["ALL", "Tier 0", "Tier 1", "Tier 2", "Tier 3", "Tier 4", "Tier 5"]}
               labels={{ ALL: "All Tiers" }}
               onChange={(value) => setTierFilter(value as typeof tierFilter)}
             />
@@ -234,7 +249,7 @@ export default function AuditPage() {
               <tbody>
                 {filteredEntries.map((entry) => {
                   const context = getAuditContext(entry);
-                  const vulnerability = getVulnerability(entry.cve);
+                  const vulnerability = lookupVulnerability(entry.cve);
                   const timestamp = formatTimestampParts(entry.timestamp);
                   return (
                     <tr className="border-b border-border last:border-b-0" key={entry.id}>

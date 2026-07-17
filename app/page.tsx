@@ -30,6 +30,7 @@ import {
 } from "@/lib/vulnerabilities";
 import { readDismissedIds, readImportedIds, writeDismissedIds, writeImportedIds } from "@/lib/queue-state";
 import { writeAuditEntry } from "@/lib/audit";
+import { readRefreshFeed, REFRESH_FEED_UPDATED_EVENT } from "@/lib/refresh-feed";
 
 const filterOptions: Array<Recommendation | "ALL"> = ["ALL", "ACT", "ATTEND", "TRACK"];
 const tuesdayReleaseIds = batchLookupCatalog.map((vulnerability) => vulnerability.id);
@@ -49,6 +50,7 @@ export default function QueuePage() {
   const [filter, setFilter] = useState<Recommendation | "ALL">("ALL");
   const [queueView, setQueueView] = useState<QueueView>("ACTIVE");
   const [importedIds, setImportedIds] = useState<string[]>([]);
+  const [refreshedVulnerabilities, setRefreshedVulnerabilities] = useState<Vulnerability[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [batchOpen, setBatchOpen] = useState(false);
   const [dismissTarget, setDismissTarget] = useState<Vulnerability | null>(null);
@@ -58,11 +60,16 @@ export default function QueuePage() {
     const load = () => {
       setImportedIds(readImportedIds());
       setDismissedIds(readDismissedIds());
+      setRefreshedVulnerabilities(readRefreshFeed().vulnerabilities);
     };
 
     load();
     window.addEventListener("tva-queue-updated", load);
-    return () => window.removeEventListener("tva-queue-updated", load);
+    window.addEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+    return () => {
+      window.removeEventListener("tva-queue-updated", load);
+      window.removeEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+    };
   }, []);
 
   const queue = useMemo(() => {
@@ -70,8 +77,10 @@ export default function QueuePage() {
     const imported = batchLookupCatalog.filter(
       (vulnerability) => importedIds.includes(vulnerability.id) && !baseIds.has(vulnerability.id)
     );
-    return [...vulnerabilities, ...imported];
-  }, [importedIds]);
+    const knownIds = new Set([...baseIds, ...imported.map((vulnerability) => vulnerability.id)]);
+    const refreshed = refreshedVulnerabilities.filter((vulnerability) => !knownIds.has(vulnerability.id));
+    return [...vulnerabilities, ...refreshed, ...imported];
+  }, [importedIds, refreshedVulnerabilities]);
 
   const visibleQueue = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -103,7 +112,7 @@ export default function QueuePage() {
   }
 
   function addImported(ids: string[]) {
-    const knownIds = new Set([...vulnerabilities, ...batchLookupCatalog].map((vulnerability) => vulnerability.id));
+    const knownIds = new Set([...queue, ...batchLookupCatalog].map((vulnerability) => vulnerability.id));
     const nextImported = writeImportedIds([...importedIds, ...ids.filter((id) => knownIds.has(id))]);
     const nextDismissed = writeDismissedIds(dismissedIds.filter((id) => !ids.includes(id)));
     setImportedIds(nextImported);

@@ -1,5 +1,4 @@
-import { notFound } from "next/navigation";
-import { VulnerabilityDetail } from "@/app/cves/[id]/vulnerability-detail";
+import { DynamicVulnerabilityPage } from "@/app/cves/[id]/dynamic-vulnerability-page";
 import { getVulnerability } from "@/lib/vulnerabilities";
 
 export default async function VulnerabilityPage({
@@ -10,9 +9,5 @@ export default async function VulnerabilityPage({
   const { id } = await params;
   const vulnerability = getVulnerability(id);
 
-  if (!vulnerability) {
-    notFound();
-  }
-
-  return <VulnerabilityDetail vulnerability={vulnerability} />;
+  return <DynamicVulnerabilityPage id={id} staticVulnerability={vulnerability} />;
 }

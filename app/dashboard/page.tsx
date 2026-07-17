@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import type React from "react";
 import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, FileCheck2, ShieldAlert, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { AppShell } from "@/components/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,18 +17,33 @@ import {
   vulnerabilities
 } from "@/lib/vulnerabilities";
 import type { Recommendation } from "@/lib/types";
+import type { Vulnerability } from "@/lib/types";
+import { readRefreshFeed, REFRESH_FEED_UPDATED_EVENT } from "@/lib/refresh-feed";
 
 export default function DashboardPage() {
-  const summary = getSummaryCounts();
-  const priority = [...vulnerabilities].sort(sortByRecommendationPriority).slice(0, 5);
-  const total = vulnerabilities.length;
+  const [refreshedVulnerabilities, setRefreshedVulnerabilities] = useState<Vulnerability[]>([]);
+
+  useEffect(() => {
+    const load = () => setRefreshedVulnerabilities(readRefreshFeed().vulnerabilities);
+    load();
+    window.addEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+    return () => window.removeEventListener(REFRESH_FEED_UPDATED_EVENT, load);
+  }, []);
+
+  const allVulnerabilities = useMemo(() => {
+    const baseIds = new Set(vulnerabilities.map((vulnerability) => vulnerability.id));
+    return [...vulnerabilities, ...refreshedVulnerabilities.filter((item) => !baseIds.has(item.id))];
+  }, [refreshedVulnerabilities]);
+  const summary = getSummaryCounts(allVulnerabilities);
+  const priority = [...allVulnerabilities].sort(sortByRecommendationPriority).slice(0, 5);
+  const total = allVulnerabilities.length;
   const avgConfidence = Math.round(
-    vulnerabilities.reduce((sum, vulnerability) => sum + vulnerability.confidence, 0) / total
+    allVulnerabilities.reduce((sum, vulnerability) => sum + vulnerability.confidence, 0) / total
   );
-  const kevCount = vulnerabilities.filter((vulnerability) => vulnerability.kev).length;
-  const accelerated = vulnerabilities.filter((vulnerability) => getGovernanceDecision(vulnerability).acceleratedRemediation).length;
+  const kevCount = allVulnerabilities.filter((vulnerability) => vulnerability.kev).length;
+  const accelerated = allVulnerabilities.filter((vulnerability) => getGovernanceDecision(vulnerability).acceleratedRemediation).length;
   const avgSeverity = Math.round(
-    vulnerabilities.reduce((sum, vulnerability) => sum + getGovernanceDecision(vulnerability).score, 0) / total
+    allVulnerabilities.reduce((sum, vulnerability) => sum + getGovernanceDecision(vulnerability).score, 0) / total
   );
 
   return (

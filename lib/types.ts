@@ -2,6 +2,8 @@ export type Recommendation = "ACT" | "ATTEND" | "TRACK";
 
 export type MissionDependency = "High" | "Medium" | "Low";
 
+export type RtoTier = "Tier 0" | "Tier 1" | "Tier 2" | "Tier 3" | "Tier 4" | "Tier 5";
+
 export type ThreatActorActivity =
   | "NO_KNOWN_ACTIVITY"
   | "ACTIVE_EXPLOITATION"
@@ -26,13 +28,17 @@ export type Vulnerability = {
   description: string;
   cvss: number;
   cvssSource: string;
+  cvssVector?: string;
+  publishedDate?: string;
+  lastModified?: string;
+  cwe?: string;
   epss: number;
   epssPercentile: number;
   epssDate: string;
   kev: boolean;
   kevDateAdded: string | null;
   kevSource: string;
-  tier: "Tier 1" | "Tier 2" | "Tier 3";
+  tier: RtoTier;
   businessUnit: string;
   internetFacing: boolean;
   businessCritical: boolean;
@@ -42,7 +48,22 @@ export type Vulnerability = {
   confidence: number;
   vulnerableVersions?: string[];
   availableFixes?: string[];
+  workarounds?: string[];
+  vendorAdvisoryUrl?: string;
   remediationStatus?: "Open" | "Scheduled" | "In Progress" | "Remediated" | "Dismissed";
+  compensatingControlsPresent?: boolean;
+  compensatingControlsDescription?: string;
+  assetId?: string;
+  assetType?: string;
+  production?: boolean;
+  threatIntelCategory?: "none" | "active" | "targeted";
+  groundTruthOutcome?: Recommendation;
+  groundTruthNotes?: string;
+  protocolReasoningLog?: string[];
+  protocolConfidence?: "HIGH" | "MEDIUM" | "LOW";
+  protocolStage?: number;
+  generatedAt?: string;
+  dataSource?: "Static PoC Catalog" | "Demo Refresh Feed";
 };
 
 export type DecisionPathStep = {

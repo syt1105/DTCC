@@ -119,8 +119,8 @@ export function leftBorderTone(recommendation: Recommendation) {
   return "border-l-track";
 }
 
-export function getSummaryCounts() {
-  return vulnerabilities.reduce(
+export function getSummaryCounts(source: Vulnerability[] = vulnerabilities) {
+  return source.reduce(
     (summary, vulnerability) => {
       summary[deriveRecommendation(vulnerability)] += 1;
       return summary;
@@ -130,6 +130,10 @@ export function getSummaryCounts() {
 }
 
 export function deriveRecommendation(vulnerability: Vulnerability): Recommendation {
+  if (vulnerability.groundTruthOutcome) {
+    return vulnerability.groundTruthOutcome;
+  }
+
   if (deriveAcceleratedRemediation(vulnerability)) {
     return "ACT";
   }
@@ -176,7 +180,16 @@ export function deriveDtccSeverityScore(vulnerability: Vulnerability) {
   score += Math.round(vulnerability.epss * 18);
   score += vulnerability.kev ? 12 : 0;
   score += vulnerability.internetFacing ? 12 : 0;
-  score += vulnerability.tier === "Tier 1" ? 12 : vulnerability.tier === "Tier 2" ? 7 : 3;
+  score +=
+    vulnerability.tier === "Tier 0"
+      ? 12
+      : vulnerability.tier === "Tier 1"
+        ? 12
+        : vulnerability.tier === "Tier 2"
+          ? 7
+          : vulnerability.tier === "Tier 3"
+            ? 5
+            : 3;
   score += vulnerability.businessCritical ? 8 : 0;
   score += vulnerability.missionDependency === "High" ? 8 : vulnerability.missionDependency === "Medium" ? 4 : 0;
   score += vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING" ? 18 : 0;
@@ -206,7 +219,7 @@ export function deriveAcceleratedRemediation(vulnerability: Vulnerability) {
     vulnerability.threatActorActivity === "FINANCIAL_SECTOR_TARGETING" ||
     (vulnerability.kev &&
       vulnerability.internetFacing &&
-      (vulnerability.tier === "Tier 1" || vulnerability.businessCritical))
+      (vulnerability.tier === "Tier 0" || vulnerability.tier === "Tier 1" || vulnerability.businessCritical))
   );
 }
 
